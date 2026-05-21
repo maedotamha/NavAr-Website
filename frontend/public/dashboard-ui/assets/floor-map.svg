@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 520" role="img" aria-labelledby="title desc">
+  <title id="title">NavAR floor map preview</title>
+  <desc id="desc">Simplified indoor map with corridors, destinations, and QR anchors.</desc>
+  <rect width="920" height="520" fill="#eef3ee"/>
+  <rect x="70" y="70" width="780" height="360" rx="12" fill="#ffffff" stroke="#c7d5cc" stroke-width="4"/>
+  <rect x="120" y="120" width="210" height="110" rx="8" fill="#dff5ea" stroke="#8cc8ab" stroke-width="3"/>
+  <rect x="120" y="285" width="210" height="95" rx="8" fill="#e8f1f7" stroke="#92b9cf" stroke-width="3"/>
+  <rect x="585" y="120" width="210" height="110" rx="8" fill="#fff3de" stroke="#d8ae70" stroke-width="3"/>
+  <rect x="585" y="285" width="210" height="95" rx="8" fill="#f8e6e6" stroke="#d89b9b" stroke-width="3"/>
+  <path d="M330 178 H585 M330 332 H585 M458 178 V332" fill="none" stroke="#5b6c62" stroke-width="28" stroke-linecap="round"/>
+  <path d="M330 178 H585 M330 332 H585 M458 178 V332" fill="none" stroke="#f7faf7" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="456" cy="254" r="31" fill="#1f7a58"/>
+  <text x="456" y="262" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#ffffff">QR</text>
+  <circle cx="180" cy="250" r="21" fill="#256f9c"/>
+  <circle cx="735" cy="250" r="21" fill="#256f9c"/>
+  <circle cx="690" cy="175" r="14" fill="#b26a12"/>
+  <circle cx="224" cy="335" r="14" fill="#b26a12"/>
+  <text x="145" y="174" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#17201b">Lab 301</text>
+  <text x="145" y="340" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#17201b">Library</text>
+  <text x="615" y="174" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#17201b">Office 214</text>
+  <text x="615" y="340" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#17201b">Auditorium</text>
+  <text x="70" y="475" font-family="Arial, sans-serif" font-size="18" fill="#667269">QR anchors initialize localization; node-edge corridors support route computation and offline mobile sync.</text>
+</svg>

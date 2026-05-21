@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: navar-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: AUTH_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://nav-ar-website.vercel.app,https://nav-ar-website-e9fg3yhzm-maedot-amha-alemus-projects.vercel.app
+      - key: CORS_ORIGIN_PATTERNS
+        value: ^https://nav-ar-website(?:-[a-z0-9-]+)?\.vercel\.app$
+      - key: OUTDOOR_NAV_API_URL
+        value: https://naviagtion-2.onrender.com

@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NavAR Admin Dashboard</title>
+    <link rel="stylesheet" href="/dashboard-ui/styles.css">
+  </head>
+  <body class="embedded-shell">
+    <header class="app-header">
+      <div class="brand"><span>NavAR</span><small>Admin</small></div>
+      <nav class="top-nav" aria-label="Primary navigation">
+        <button class="nav-tab is-active" data-view="dashboard"><span class="nav-icon">⬡</span>Dashboard</button>
+        <button class="nav-tab" data-view="facilities"><span class="nav-icon">▦</span>Facilities</button>
+        <button class="nav-tab" data-view="maps"><span class="nav-icon">⊕</span>Maps</button>
+        <button class="nav-tab" data-view="qr"><span class="nav-icon">▣</span>QR Anchors</button>
+        <button class="nav-tab" data-view="analytics"><span class="nav-icon">◈</span>Analytics</button>
+        <button class="nav-tab" data-view="settings"><span class="nav-icon">⚙</span>Settings</button>
+        <button class="nav-tab" data-view="access"><span class="nav-icon">RB</span>Access</button>
+      </nav>
+      <div class="admin-cluster">
+        <button class="icon-button" aria-label="Notifications"><span class="bell">!</span><strong>3</strong></button>
+        <div class="avatar">AU</div>
+        <div><b>Admin User</b><small>System Administrator</small></div>
+      </div>
+    </header>
+    <main class="page">
+
+      <section class="view is-visible" id="dashboard">
+        <div class="page-title">
+          <div>
+            <h1>AASTU RTC&nbsp;&nbsp;<span class="live-badge"><span class="live-dot-pulse"></span>Live</span></h1>
+            <p>AR navigation analytics across 8 campus blocks &mdash; Blocks B, C, F, G &amp; H active</p>
+          </div>
+          <button class="ghost-button" id="refreshButton" type="button">↻ Refresh</button>
+        </div>
+        <div class="block-strip" id="blockStrip"></div>
+        <div class="metric-grid" id="metricGrid">
+          <article class="metric-card"><div class="metric-top"><span class="metric-icon violet">B</span><b>+ 12%</b></div><strong>24</strong><small>Active Facilities</small></article>
+          <article class="metric-card"><div class="metric-top"><span class="metric-icon purple">Q</span><b>+ 8%</b></div><strong>1,247</strong><small>QR Codes Deployed</small></article>
+          <article class="metric-card"><div class="metric-top"><span class="metric-icon blue">U</span><b>+ 24%</b></div><strong>15.8K</strong><small>Active Users Today</small></article>
+          <article class="metric-card"><div class="metric-top"><span class="metric-icon green">L</span><b>+ 18%</b></div><strong>91.7%</strong><small>Localization Accuracy</small></article>
+          <article class="metric-card"><div class="metric-top"><span class="metric-icon cyan">R</span><b>+ 6%</b></div><strong>93%</strong><small>Route Success</small></article>
+          <article class="metric-card"><div class="metric-top"><span class="metric-icon amber">!</span><b>- 4%</b></div><strong>54</strong><small>Recovery Events</small></article>
+        </div>
+        <section class="dashboard-grid">
+          <article class="panel usage-panel">
+            <div class="panel-head"><h2>Navigation Usage</h2><div class="segmented" id="rangeControls"><button class="is-active" data-range="7D">7D</button><button data-range="30D">30D</button><button data-range="90D">90D</button></div></div>
+            <div id="usageChart" class="chart"><svg viewBox="0 0 780 250" role="img" aria-label="Navigation usage line chart"><line x1="38" y1="190" x2="742" y2="190" class="grid-line"></line><line x1="38" y1="145" x2="742" y2="145" class="grid-line"></line><line x1="38" y1="100" x2="742" y2="100" class="grid-line"></line><line x1="38" y1="55" x2="742" y2="55" class="grid-line"></line><polygon points="38,212 38,88 155,72 272,78 389,60 506,54 623,116 742,132 742,212" class="chart-fill"></polygon><polyline points="38,88 155,72 272,78 389,60 506,54 623,116 742,132" class="line requests"></polyline><polyline points="38,96 155,80 272,85 389,68 506,62 623,124 742,140" class="line successful"></polyline><text x="38" y="242" text-anchor="middle">Mon</text><text x="155" y="242" text-anchor="middle">Tue</text><text x="272" y="242" text-anchor="middle">Wed</text><text x="389" y="242" text-anchor="middle">Thu</text><text x="506" y="242" text-anchor="middle">Fri</text><text x="623" y="242" text-anchor="middle">Sat</text><text x="742" y="242" text-anchor="middle">Sun</text><g class="legend-chart"><circle cx="74" cy="24" r="4" class="requests-dot"></circle><text x="84" y="28">Navigation Requests</text><circle cx="226" cy="24" r="4" class="success-dot"></circle><text x="236" y="28">Successful Routes</text></g></svg></div>
+          </article>
+          <article class="panel"><div class="panel-head"><h2>System Status</h2></div><div class="status-list" id="systemStatus"><article class="status-item"><span class="status-icon online"></span><div><strong>API Server</strong><small>Operational</small></div><i class="online"></i></article><article class="status-item"><span class="status-icon online"></span><div><strong>Database</strong><small>Healthy</small></div><i class="online"></i></article><article class="status-item"><span class="status-icon warning"></span><div><strong>Map Service</strong><small>Syncing</small></div><i class="warning"></i></article><article class="status-item"><span class="status-icon online"></span><div><strong>Analytics</strong><small>Running</small></div><i class="online"></i></article></div></article>
+        </section>
+
+        <div class="qr-health-bar panel" id="qrHealthBar"></div>
+
+        <section class="panel sessions-panel">
+          <div class="panel-head">
+            <div><h2>Recent AR Sessions <span class="live-badge small"><span class="live-dot-pulse"></span>Live</span></h2><p>Latest navigation sessions across all active blocks</p></div>
+          </div>
+          <div id="sessionsFeed"></div>
+        </section>
+
+        <section class="map-section panel" id="campusMapSection">
+          <div class="panel-head">
+            <div><h2>AASTU RTC Campus &mdash; AR Navigation Heat Map</h2><p>Live AR platform usage across 8 blocks. Click any block to inspect floors and zones.</p></div>
+            <div class="hmap-top-controls">
+              <div class="segmented" id="hmapMetricCtrl">
+                <button class="is-active" data-hmetric="usage">AR Sessions</button>
+                <button data-hmetric="dwell">Dwell Time</button>
+                <button data-hmetric="qr">QR Density</button>
+                <button data-hmetric="success">Route Success</button>
+              </div>
+              <button class="ghost-button hmap-live-btn" id="hmapLiveBtn">&#9654; Live</button>
+            </div>
+          </div>
+          <div id="campusView">
+            <div class="campus-shell">
+              <div class="campus-canvas-wrap">
+                <canvas id="campusCanvas" width="860" height="460"></canvas>
+                <div class="heat-legend-bar"><span>Low</span><div class="heat-legend-gradient"></div><span>High</span></div>
+              </div>
+              <aside class="campus-inspector" id="campusInspector">
+                <div class="cinsp-header"><h3 id="cinspTitle">Campus Overview</h3><small id="cinspSub">Hover a block for details</small></div>
+                <div class="cinsp-stats">
+                  <div class="layer-stat"><span>Active Blocks</span><b>8</b></div>
+                  <div class="layer-stat"><span>AR Users Now</span><b id="campusLiveUsers">&#8212;</b></div>
+                  <div class="layer-stat"><span>Sessions Today</span><b id="campusSessions">&#8212;</b></div>
+                  <div class="layer-stat"><span>QR Anchors</span><b>1,247</b></div>
+                  <div class="layer-stat"><span>Avg Success</span><b id="campusAvgSuccess">&#8212;</b></div>
+                </div>
+                <hr class="cinsp-divider">
+                <p class="cinsp-hint">Click a block to drill into floor-level AR heat map</p>
+                <div class="cinsp-block-list" id="cinspBlockList"></div>
+              </aside>
+            </div>
+          </div>
+          <div id="floorDetailView" style="display:none">
+            <div class="floor-nav">
+              <div class="floor-nav-left">
+                <button class="ghost-button small-btn" id="backToCampus">&#8592; Campus</button>
+                <span class="floor-block-label" id="floorBlockLabel">Block H</span>
+              </div>
+              <div class="floor-stepper">
+                <button class="ghost-button small-btn" id="floorPrevBtn" disabled>&#8249; Prev Floor</button>
+                <span class="floor-step-label" id="floorStepLabel">Ground Floor</span>
+                <button class="ghost-button small-btn" id="floorNextBtn">Next Floor &#8250;</button>
+              </div>
+              <div class="floor-tabs-scroll" id="floorTabs"><!-- populated by JS --></div>
+            </div>
+            <div class="map-shell">
+              <svg class="building-map" id="buildingMap" viewBox="0 0 1000 680" role="img" aria-label="Floor plan AR heat map"><defs><filter id="glow"><feGaussianBlur stdDeviation="7" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter><linearGradient id="roomGradient" x1="0" x2="1"><stop offset="0" stop-color="#fbfcff"/><stop offset="1" stop-color="#f4f7ff"/></linearGradient></defs></svg>
+              <aside class="map-inspector"><h3>Floor Detail</h3><div class="map-toggles" id="mapToggles"><label><input type="checkbox" value="heat" checked> Heat</label><label><input type="checkbox" value="routes" checked> Routes</label><label><input type="checkbox" value="qr" checked> QR Codes</label><label><input type="checkbox" value="nodes" checked> Nodes</label><label><input type="checkbox" value="pois" checked> POIs</label></div><hr class="cinsp-divider"><div class="layer-stat"><span>Zones</span><b id="zoneCount">&#8212;</b></div><div class="layer-stat"><span>Nodes</span><b id="nodeCount">&#8212;</b></div><div class="layer-stat"><span>POIs</span><b id="poiCount">&#8212;</b></div><div class="layer-stat"><span>QR Anchors</span><b id="qrCount">&#8212;</b></div></aside>
+            </div>
+          </div>
+        </section>
+
+        <section class="lower-grid">
+          <article class="panel"><div class="panel-head"><h2>Recent System Alerts</h2></div><div class="alert-list" id="alertList"><article class="alert warning"><span></span><div><strong>QR Anchor Needs Verification</strong><p>Block H Floor 4 lab entry QR (QR-H-4-LabEast) missed 3 consecutive syncs.</p><small>1 hour ago</small></div></article><article class="alert info"><span></span><div><strong>New POI Registered</strong><p>Wind Turbine Observation Point added to Block F exterior map layer.</p><small>4 hours ago</small></div></article><article class="alert success"><span></span><div><strong>Block G Mapping Complete</strong><p>Nuclear Reactor Excellence Center floor plans fully digitised and QR anchors live.</p><small>18 hours ago</small></div></article><article class="alert danger"><span></span><div><strong>Anchor Offline</strong><p>QR-C-B1-ParkingRamp has not synced — Block C parking navigation degraded.</p><small>2 days ago</small></div></article></div></article>
+          <article class="panel"><div class="panel-head"><h2>Top Areas by AR Usage</h2></div><div class="bar-list" id="topAreas"><article class="usage-row"><div><strong>Block H — Central Lab Entrance</strong></div><div class="progress"><span style="width:100%"></span></div><b>5,214 visits</b></article><article class="usage-row"><div><strong>Block B — AI Research Lab</strong></div><div class="progress"><span style="width:84%"></span></div><b>4,380 visits</b></article><article class="usage-row"><div><strong>Block F — Sustainable Energy Lab (L1)</strong></div><div class="progress"><span style="width:74%"></span></div><b>3,860 visits</b></article><article class="usage-row"><div><strong>Block C — HPC Computing Floor</strong></div><div class="progress"><span style="width:52%"></span></div><b>2,710 visits</b></article><article class="usage-row"><div><strong>Block G — Executive Meeting Room</strong></div><div class="progress"><span style="width:38%"></span></div><b>1,980 visits</b></article></div></article>
+        </section>
+      </section>
+
+      <section class="view" id="facilities">
+        <div class="page-title"><div><h1>Facility Management</h1><p>Manage buildings, floors, and facility information for the navigation system</p></div><button class="primary-button" type="button">+ Add Facility</button></div>
+        <div class="toolbar"><input type="search" placeholder="Search facilities..." aria-label="Search facilities"><select aria-label="Building filter"><option>All Buildings</option></select><select aria-label="Floor filter"><option>All Floors</option></select><button class="ghost-button" type="button">Export</button></div>
+        <div class="detail-grid" id="facilityCards"><article class="detail-card facility-card"><div class="facility-art art-1"><span>Active</span><i></i></div><h2>Block B — AI &amp; Robotics</h2><p>AI &amp; Robotics Excellence Center. Modular research labs, Director &amp; Deputy Director suites, granite elevator lobby.</p><div class="facility-stats"><span>Total Floors <b>5</b></span><span>QR Anchors <b>36</b></span></div><footer><small>2,180 AR sessions / month</small><a href="#maps">View Details &rarr;</a></footer></article><article class="detail-card facility-card"><div class="facility-art art-2"><span>Active</span><i></i></div><h2>Block C — HPC &amp; Big Data</h2><p>High-Performance Computing &amp; Big Data Analytics. Underground parking (Level &minus;1.1 &amp; &minus;1.2), computing floors above.</p><div class="facility-stats"><span>Total Floors <b>6</b></span><span>QR Anchors <b>30</b></span></div><footer><small>1,640 AR sessions / month</small><a href="#maps">View Details &rarr;</a></footer></article><article class="detail-card facility-card"><div class="facility-art art-0"><span>Active</span><i></i></div><h2>Block F — Sustainable Energy</h2><p>Sustainable Energy Technology Excellence Center. 6 lab floors, Wind Turbine &amp; Renewable Energy Array on exterior.</p><div class="facility-stats"><span>Total Floors <b>6</b></span><span>QR Anchors <b>48</b></span></div><footer><small>2,540 AR sessions / month</small><a href="#maps">View Details &rarr;</a></footer></article><article class="detail-card facility-card"><div class="facility-art art-1"><span>Active</span><i></i></div><h2>Block G — Nuclear Reactor</h2><p>Nuclear Reactor Excellence Center. Executive Meeting Room, researcher offices, dedicated Gas &amp; Electrical shafts.</p><div class="facility-stats"><span>Total Floors <b>4</b></span><span>QR Anchors <b>22</b></span></div><footer><small>980 AR sessions / month</small><a href="#maps">View Details &rarr;</a></footer></article><article class="detail-card facility-card"><div class="facility-art art-2"><span>Active</span><i></i></div><h2>Block H — Central Laboratory Hub</h2><p>University-wide research hub. G+5 layout, 1,648 m&sup2; footprint, polycarbonate curtain-wall entrances, multi-discipline labs on all 5 upper floors.</p><div class="facility-stats"><span>Total Floors <b>6</b></span><span>QR Anchors <b>55</b></span></div><footer><small>3,240 AR sessions / month</small><a href="#maps">View Details &rarr;</a></footer></article><article class="detail-card facility-card"><div class="facility-art art-0"><span>Phase 2</span><i></i></div><h2>Blocks A, D, E</h2><p>Three additional campus blocks currently being commissioned and mapped. AR anchors will be deployed upon handover.</p><div class="facility-stats"><span>Blocks <b>3</b></span><span>QR Anchors <b>44</b></span></div><footer><small>Coming soon</small><a href="#maps">View Details &rarr;</a></footer></article></div>
+        <div class="metric-grid compact" id="facilityMetrics"><article class="metric-card"><div class="metric-top"><span class="metric-icon blue">◈</span><b>5 active</b></div><strong>8</strong><small>Campus Blocks</small></article><article class="metric-card"><div class="metric-top"><span class="metric-icon purple">▦</span><b>avg 5.4</b></div><strong>27</strong><small>Total Mapped Floors</small></article><article class="metric-card"><div class="metric-top"><span class="metric-icon green">▣</span><b>88% online</b></div><strong>191</strong><small>QR Anchors Deployed</small></article><article class="metric-card"><div class="metric-top"><span class="metric-icon amber">↗</span><b>+14%</b></div><strong>14.1K</strong><small>AR Sessions (7D)</small></article></div>
+      </section>
+
+      <section class="view" id="maps">
+        <div class="page-title"><div><h1>Maps &amp; Navigation</h1><p>Nodes, POIs, and route-session storage for Unity integration.</p></div></div>
+        <div class="split-grid"><article class="panel"><h2>Store Route Usage</h2><form class="stack-form" id="sessionForm"><label>Route <select name="routeId" id="routeSelect"><option value="route-h-entry-b-lab">Block H Entrance → AI Research Lab (Block B)</option><option value="route-f-lobby-f6">Block F Lobby → Floor 6 Energy Lab</option><option value="route-g-lobby-meeting">Block G Lobby → Executive Meeting Room</option><option value="route-c-entry-parking">Block C Entrance → Parking Level −1.1</option><option value="route-h-f1-f5">Block H Floor 1 → Floor 5 Lab</option></select></label><label>Anonymous user <input name="anonymousUserId" value="visitor-demo"></label><label>Duration seconds <input name="durationSeconds" type="number" min="20" value="390"></label><label>Localization accuracy <input name="localizationAccuracy" type="number" min="0.65" max="1" step="0.01" value="0.91"></label><label class="check-row"><input name="includeRecovery" type="checkbox"> Include recovery event</label><button class="primary-button" type="submit">Store route usage</button></form></article><article class="panel"><h2>Mobile Endpoint</h2><pre><code>POST /api/mobile/navigation-sessions
+{
+  "routeId": "route-entry-lab",
+  "anonymousUserId": "hashed-session-id",
+  "durationSeconds": 420,
+  "localizationAccuracy": 0.91,
+  "pathTrace": [{ "x": 52, "y": 49, "dwellSeconds": 30, "recovery": true }]
+}</code></pre></article></div>
+      </section>
+
+      <section class="view" id="qr">
+        <div class="page-title"><div><h1>QR Code Management</h1><p>Generate, assign, and manage QR codes for indoor locations</p></div><button class="primary-button" type="button">+ Generate QR Code</button></div>
+        <div class="metric-grid compact" id="qrMetrics"><article class="metric-card"><div class="metric-top"><span class="metric-icon purple">▣</span><b>+18%</b></div><strong>191</strong><small>Total QR Anchors</small></article><article class="metric-card"><div class="metric-top"><span class="metric-icon green">◉</span><b>88%</b></div><strong>168</strong><small>Anchors Online</small></article><article class="metric-card"><div class="metric-top"><span class="metric-icon amber">⚠</span><b>8%</b></div><strong>15</strong><small>Needs Verification</small></article><article class="metric-card"><div class="metric-top"><span class="metric-icon red">✕</span><b>4%</b></div><strong>8</strong><small>Offline / Dead</small></article></div>
+        <div class="toolbar"><input type="search" placeholder="Search QR codes..." aria-label="Search QR codes"><select aria-label="Building filter"><option>All Buildings</option></select><select aria-label="Floor filter"><option>All Floors</option></select><select aria-label="Status filter"><option>All Status</option></select><button class="ghost-button" type="button">Clear Filters</button></div>
+        <article class="panel"><div class="panel-head"><h2>QR Code List</h2><small id="qrEntryCount">Showing 1 to 6 of 1,247 entries</small></div><div class="table-wrap"><table><thead><tr><th>QR Code ID</th><th>Location</th><th>Building / Floor</th><th>Status</th><th>Scans (30D)</th><th>Last Scan</th></tr></thead><tbody id="qrRows"><tr><td><strong>QR-H-G-MainEntry</strong><br><small>qr-h-entry-01</small></td><td>Main Entrance (Curtain Wall)</td><td>Block H — Central Lab Hub / Ground</td><td><span class="status-pill online">online</span></td><td>2,614</td><td>30 min ago</td></tr><tr><td><strong>QR-B-G-Lobby</strong><br><small>qr-b-lobby-01</small></td><td>Granite Elevator Lobby</td><td>Block B — AI &amp; Robotics / Ground</td><td><span class="status-pill online">online</span></td><td>1,482</td><td>1 hour ago</td></tr><tr><td><strong>QR-F-1-EnergyLab</strong><br><small>qr-f-lab-01</small></td><td>Sustainable Energy Lab — Floor 1</td><td>Block F — Sustainable Energy / Floor 1</td><td><span class="status-pill online">online</span></td><td>1,340</td><td>2 hours ago</td></tr><tr><td><strong>QR-G-G-MainLobby</strong><br><small>qr-g-lobby-01</small></td><td>Main Granite Lobby</td><td>Block G — Nuclear Reactor / Ground</td><td><span class="status-pill online">online</span></td><td>876</td><td>3 hours ago</td></tr><tr><td><strong>QR-C-B1-ParkingRamp</strong><br><small>qr-c-park-01</small></td><td>Parking Ramp — Level &minus;1.1</td><td>Block C — HPC &amp; Big Data / Level &minus;1</td><td><span class="status-pill offline">offline</span></td><td>541</td><td>2 days ago</td></tr><tr><td><strong>QR-G-2-MeetingRm</strong><br><small>qr-g-meet-01</small></td><td>Executive Meeting Room</td><td>Block G — Nuclear Reactor / Floor 2</td><td><span class="status-pill online">online</span></td><td>398</td><td>5 hours ago</td></tr></tbody></table></div></article>
+      </section>
+
+      <section class="view" id="analytics">
+        <div class="page-title"><div><h1>Analytics</h1><p>Campus-wide AR platform analytics &mdash; block usage, route performance, and navigation quality across all 8 blocks.</p></div></div>
+        <div class="campus-block-grid" id="campusBlockGrid"></div>
+        <div class="split-grid"><article class="panel"><h2>Route Performance</h2><div class="table-wrap"><table><thead><tr><th>Route</th><th>Uses</th><th>Success</th><th>Avg Duration</th><th>Recoveries</th></tr></thead><tbody id="routeRows"><tr><td><strong>Block H Entrance → AI Research Lab (Block B)</strong><br><small>Inter-block · 210 m</small></td><td>124</td><td>90%</td><td>6m 45s</td><td>14</td></tr><tr><td><strong>Block F Lobby → Floor 6 Energy Lab</strong><br><small>Vertical · 6 floors</small></td><td>98</td><td>88%</td><td>4m 12s</td><td>11</td></tr><tr><td><strong>Block G Lobby → Executive Meeting Room</strong><br><small>Internal · 80 m</small></td><td>74</td><td>94%</td><td>2m 30s</td><td>4</td></tr><tr><td><strong>Block C Entrance → Parking Level &minus;1.1</strong><br><small>Vertical descent · 2 levels</small></td><td>61</td><td>86%</td><td>3m 05s</td><td>9</td></tr><tr><td><strong>Block H Floor 1 → Floor 5 Lab (Central Hub)</strong><br><small>Vertical · 4 floors, 4 m clear height each</small></td><td>48</td><td>87%</td><td>5m 20s</td><td>6</td></tr></tbody></table></div></article><article class="panel"><h2>Top POIs</h2><div class="bar-list" id="topPois"><article class="usage-row"><div><strong>Block H — Central Lab Entrance</strong><small>Ground Floor · Polycarbonate curtain-wall entry</small></div><div class="progress"><span style="width:100%"></span></div><b>1,840 visits</b></article><article class="usage-row"><div><strong>Block B — AI Research Lab</strong><small>Floor 2 · Ceramic-tiled modular lab</small></div><div class="progress"><span style="width:76%"></span></div><b>1,400 visits</b></article><article class="usage-row"><div><strong>Block F — Energy Lab Floor 1</strong><small>Floor 1 · Gas duct &amp; SN duct access zone</small></div><div class="progress"><span style="width:66%"></span></div><b>1,215 visits</b></article><article class="usage-row"><div><strong>Block G — Executive Meeting Room</strong><small>Floor 2 · Acoustic carpet, high-capacity assembly</small></div><div class="progress"><span style="width:44%"></span></div><b>810 visits</b></article><article class="usage-row"><div><strong>Block C — HPC Computing Floor</strong><small>Floor 1 · Granite lobby connecting to compute racks</small></div><div class="progress"><span style="width:36%"></span></div><b>662 visits</b></article></div></article></div>
+        <div class="zone-grid" id="zoneGrid"><article class="zone-card attention"><div><span>Block H — Central Lab Hub</span><h3>Multi-floor Lab Corridors</h3></div><div class="zone-stats"><b>96%</b><small>Utilisation</small><b>87%</b><small>Route Success</small><b>22</b><small>Recoveries</small></div><p>High traffic across 5 upper floors. Fire-insulated access points require additional QR markers between glass partitions on floors 3 and 4.</p></article><article class="zone-card attention"><div><span>Block C — HPC &amp; Big Data</span><h3>Parking Level &minus;1.1 Ramp</h3></div><div class="zone-stats"><b>80%</b><small>Utilisation</small><b>86%</b><small>Route Success</small><b>9</b><small>Recoveries</small></div><p>Offline QR anchor at parking ramp degrades underground navigation. Restore QR-C-B1-ParkingRamp and add redundant anchor at ramp base.</p></article><article class="zone-card"><div><span>Block F — Sustainable Energy</span><h3>Gas Duct &amp; SN Duct Corridors</h3></div><div class="zone-stats"><b>91%</b><small>Utilisation</small><b>88%</b><small>Route Success</small><b>11</b><small>Recoveries</small></div><p>Vertical service shafts create dead-zones for AR tracking on floors 3–5. Deploy ceiling QR markers every 8 m along duct-access corridors.</p></article></div>
+      </section>
+
+      <section class="view" id="settings">
+        <div class="page-title"><div><h1>General System Settings</h1><p>Configure system-wide parameters and manage core functionality</p></div></div>
+        <div class="settings-layout">
+          <section class="panel settings-panel"><div class="panel-head"><div><h2>System Status</h2><p>Current operational status and health metrics</p></div><span class="status-pill online">All Systems Operational</span></div><div class="metric-grid compact" id="settingsMetrics"><article class="metric-card"><div class="metric-top"><span class="metric-icon violet">U</span><b>Last 30 days</b></div><strong>99.8%</strong><small>Uptime</small></article><article class="metric-card"><div class="metric-top"><span class="metric-icon blue">U</span><b>+12%</b></div><strong>2,847</strong><small>Active Users</small></article><article class="metric-card"><div class="metric-top"><span class="metric-icon green">A</span><b>Average</b></div><strong>142ms</strong><small>API Response</small></article><article class="metric-card"><div class="metric-top"><span class="metric-icon purple">S</span><b>340GB used</b></div><strong>68%</strong><small>Storage</small></article></div></section>
+          <section class="panel"><div class="panel-head"><h2>Performance Logs</h2><button class="primary-button" type="button">Export Logs</button></div><div class="table-wrap"><table><thead><tr><th>Timestamp</th><th>Event Type</th><th>Component</th><th>Status</th><th>Details</th></tr></thead><tbody id="performanceRows"><tr><td>2026-05-14 14:32:15</td><td>System Update</td><td>Navigation Engine</td><td><span class="status-pill success">Success</span></td><td>Version 2.4.1 installed</td></tr><tr><td>2026-05-14 13:15:42</td><td>Performance Alert</td><td>Database</td><td><span class="status-pill warning">Warning</span></td><td>High query load detected</td></tr><tr><td>2026-05-14 12:08:33</td><td>Backup</td><td>System Backup</td><td><span class="status-pill success">Success</span></td><td>Daily backup completed</td></tr><tr><td>2026-05-14 10:45:18</td><td>Cache Clear</td><td>Cache Manager</td><td><span class="status-pill success">Success</span></td><td>Navigation cache cleared</td></tr><tr><td>2026-05-14 09:22:05</td><td>Security Scan</td><td>Security Module</td><td><span class="status-pill success">Success</span></td><td>No threats detected</td></tr></tbody></table></div></section>
+          <section class="panel settings-panel"><h2>System Parameters</h2><div class="setting-row"><span>System Timezone</span><b id="settingTimezone">UTC</b></div><div class="setting-row"><span>Default Language</span><b id="settingLanguage">English</b></div><div class="setting-row"><span>Session Timeout</span><b id="settingTimeout">15 minutes</b></div><div class="setting-row"><span>Cache Duration</span><b id="settingCache">1 hour</b></div><div class="setting-row"><span>Automatic Updates</span><b>Enabled</b></div><div class="setting-row"><span>Analytics Collection</span><b>Enabled</b></div></section>
+          <section class="panel"><div class="panel-head"><h2>Maintenance Tasks</h2><button class="primary-button" type="button">Schedule Task</button></div><div class="task-grid" id="maintenanceTasks"><article class="task-card"><span class="metric-icon purple">T</span><div><strong>Database Optimization</strong><small>Next run: Tomorrow at 2:00 AM</small><small>Every 7 days</small></div><b>Scheduled</b></article><article class="task-card"><span class="metric-icon purple">T</span><div><strong>System Backup</strong><small>Next run: Today at 11:00 PM</small><small>Daily</small></div><b>Active</b></article><article class="task-card"><span class="metric-icon purple">T</span><div><strong>Cache Cleanup</strong><small>Next run: In 6 hours</small><small>Every 12 hours</small></div><b>Scheduled</b></article><article class="task-card"><span class="metric-icon purple">T</span><div><strong>System Updates</strong><small>Check for available updates</small><small>On demand</small></div><b>Manual</b></article></div></section>
+        </div>
+      </section>
+        <section class="view" id="access">
+          <div class="page-title access-title">
+            <div><h1>Access Control</h1><p>Manage users, roles, modules, and action permissions from one consistent workspace.</p></div>
+          </div>
+          <div class="access-tabs" id="accessTabs"><button class="is-active" data-access-section="users" type="button">Users</button><button data-access-section="roles" type="button">Roles</button><button data-access-section="modules" type="button">Modules</button></div>
+          <div class="access-stats" id="accessStats"></div>
+          <section class="panel access-role-catalog access-section" id="roleCatalogPanel" data-access-section-panel="roles">
+            <div class="panel-head"><div><h2>Roles</h2><p>Select a role to edit its permissions.</p></div><div class="panel-actions"><button class="primary-button" id="newRoleButton" type="button">+ Create Role</button><input id="roleSearch" class="access-search" type="search" placeholder="Search roles..."></div></div>
+            <div class="role-card-grid" id="roleList"></div>
+          </section>
+          <section class="role-workspace access-section" id="roleWorkspace" data-access-section-panel="roles" hidden>
+            <div class="workspace-bar"><button class="ghost-button" id="backToRolesButton" type="button">Back to roles</button><div><strong id="workspaceRoleName">Role</strong><small id="workspaceRoleMeta">0 permissions</small></div></div>
+            <div class="role-workspace-grid">
+              <section class="panel role-editor-panel">
+                <form class="access-form" id="roleForm">
+                  <input type="hidden" name="id" id="roleId">
+                  <div class="form-grid">
+                    <label>Role Key<input name="key" id="roleKey" placeholder="facility_manager"></label>
+                    <label>Role Name<input name="name" id="roleName" placeholder="Facility Manager" required></label>
+                  </div>
+                  <label>Description<input name="description" id="roleDescription" placeholder="What this role can do"></label>
+                  <div class="role-detail-summary" id="roleDetailSummary"></div>
+                  <div class="permission-matrix" id="permissionMatrix"></div>
+                  <div class="form-actions"><button class="ghost-button danger-button" id="deleteRoleButton" type="button">Delete Role</button><button class="primary-button" type="submit">Save Role</button></div>
+                </form>
+              </section>
+              <aside class="panel role-side-panel">
+                <div class="panel-head"><div><h2>Assigned Users</h2><p>Move admins into this role.</p></div></div>
+                <div class="user-role-list" id="userRoleList"></div>
+              </aside>
+            </div>
+          </section>
+          <section class="panel module-manager access-section" id="moduleManager" data-access-section-panel="modules" hidden>
+            <div class="panel-head"><div><h2>Modules & Actions</h2><p>Each action becomes a permission that can be granted to roles.</p></div><button class="primary-button" id="newModuleButton" type="button">+ Create Module</button></div>
+            <form class="access-form" id="moduleForm" hidden>
+              <input type="hidden" name="id" id="moduleId">
+              <div class="form-grid">
+                <label>Module Key<input name="key" id="moduleKey" placeholder="maintenance"></label>
+                <label>Module Name<input name="name" id="moduleName" placeholder="Maintenance"></label>
+              </div>
+              <label>Description<input name="description" id="moduleDescription" placeholder="Module purpose"></label>
+              <label>Actions<input name="actions" id="moduleActions" placeholder="read, create, update, delete"></label>
+                <div class="form-actions"><button class="ghost-button" id="cancelModuleButton" type="button">Cancel</button><button class="ghost-button" id="resetModuleButton" type="button">Clear</button><button class="primary-button" type="submit">Save Module</button></div>
+            </form>
+            <div class="module-list" id="moduleList"></div>
+          </section>
+          <section class="panel user-manager access-section is-visible" id="userManager" data-access-section-panel="users">
+            <div class="panel-head"><div><h2>Users</h2><p>Create accounts, assign roles, and use sample accounts to test access.</p></div><button class="primary-button" id="newUserButton" type="button">+ Create User</button></div>
+            <div class="sample-account-strip" id="sampleAccountStrip"></div>
+            <form class="access-form user-form-panel" id="userForm" hidden>
+              <input type="hidden" name="id" id="userId">
+              <div class="form-grid">
+                <label>Full Name<input name="full_name" id="userFullName" placeholder="Campus Operator" required></label>
+                <label>Email<input name="email" id="userEmail" type="email" placeholder="operator@navar.local" required></label>
+              </div>
+              <div class="form-grid">
+                <label>Role<select name="role_id" id="userRoleSelect"></select></label>
+                <label>Password<input name="password" id="userPassword" type="password" placeholder="Leave blank when editing"></label>
+              </div>
+              <label class="check-row"><input name="is_active" id="userIsActive" type="checkbox" checked> Active user</label>
+                <div class="form-actions"><button class="ghost-button" id="cancelUserButton" type="button">Cancel</button><button class="ghost-button" id="resetUserButton" type="button">Clear</button><button class="primary-button" type="submit">Save User</button></div>
+            </form>
+            <div class="user-card-grid" id="userTableList"></div>
+          </section>
+        </section>
+    </main>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="/dashboard-ui/app.js"></script>
+  </body>
+</html>
