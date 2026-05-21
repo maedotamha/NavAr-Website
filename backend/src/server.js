@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const env = require('./config/env');
 const db = require('./infrastructure/database/postgres');
+const migrate = require('./infrastructure/database/migrate');
 const controllers = require('./compositionRoot');
 const createRoutes = require('./interfaces/http/routes');
 const { notFound, errorHandler } = require('./interfaces/http/middleware/errorHandler');
@@ -27,4 +28,6 @@ app.get('/api/health', async (_req,res)=>{
 app.use('/api', createRoutes(controllers));
 app.use(notFound);
 app.use(errorHandler);
-app.listen(env.port, ()=>console.log('NavAR backend listening on http://localhost:' + env.port));
+migrate()
+  .then(() => app.listen(env.port, () => console.log('NavAR backend listening on http://localhost:' + env.port)))
+  .catch(err => { console.error('[startup] migration failed:', err.message); process.exit(1); });

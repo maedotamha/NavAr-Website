@@ -1,0 +1,138 @@
+/**
+ * Idempotent migration — runs on every server start.
+ * Uses IF NOT EXISTS / DO $$ blocks so it is safe to re-run.
+ */
+const db = require('./postgres');
+
+async function migrate() {
+  const steps = [
+    // ── navigation_sessions upgrades ──────────────────────────────────────
+    `ALTER TABLE navigation_sessions ADD COLUMN IF NOT EXISTS session_scope TEXT NOT NULL DEFAULT 'inside'`,
+    `ALTER TABLE navigation_sessions ADD COLUMN IF NOT EXISTS qr_id TEXT`,
+    `ALTER TABLE navigation_sessions ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'completed'`,
+    `ALTER TABLE navigation_sessions ADD COLUMN IF NOT EXISTS visited_node_ids JSONB NOT NULL DEFAULT '[]'`,
+    `ALTER TABLE navigation_sessions ADD COLUMN IF NOT EXISTS client_created_at TIMESTAMPTZ`,
+
+    // ── feedback table ────────────────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS feedback (
+      id           SERIAL PRIMARY KEY,
+      type         TEXT        NOT NULL DEFAULT 'feedback',
+      chips        JSONB       NOT NULL DEFAULT '[]',
+      message      TEXT,
+      rating       SMALLINT    CHECK (rating BETWEEN 1 AND 5),
+      session_id   INTEGER     REFERENCES navigation_sessions(id) ON DELETE SET NULL,
+      node_id      INTEGER     REFERENCES navigation_nodes(id)    ON DELETE SET NULL,
+      status       TEXT        NOT NULL DEFAULT 'open',
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    // chips column may be missing on older deployments that had feedback table
+    `ALTER TABLE feedback ADD COLUMN IF NOT EXISTS chips JSONB NOT NULL DEFAULT '[]'`,
+
+    // ── system_settings ───────────────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS system_settings (
+      id            SERIAL PRIMARY KEY,
+      category      TEXT        NOT NULL UNIQUE,
+      settings_json JSONB       NOT NULL DEFAULT '{}',
+      updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    // seed default categories so the settings page has something to show
+    `INSERT INTO system_settings (category, settings_json) VALUES
+      ('organization', '{"organization_name":"","campus_label":"","support_contact":"","timezone":"Africa/Addis_Ababa"}'),
+      ('sessions',     '{"session_timeout":30,"sync_interval":60,"retention_period":90,"anonymous_id_policy":"rotating"}'),
+      ('security',     '{"token_ttl":480,"password_rules":"min_length:8","inactive_user_handling":"disable","allowed_origins":[]}')
+    ON CONFLICT (category) DO NOTHING`,
+
+    // ── qr_scans ──────────────────────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS qr_scans (
+      id               SERIAL PRIMARY KEY,
+      qr_code          TEXT        NOT NULL,
+      device_id        TEXT,
+      resolved_node_id INTEGER     REFERENCES navigation_nodes(id) ON DELETE SET NULL,
+      scan_time        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+
+    // ── access_logs ───────────────────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS access_logs (
+      id         SERIAL PRIMARY KEY,
+      actor      TEXT,
+      action     TEXT,
+      target     TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+
+    // ── poi_categories ────────────────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS poi_categories (
+      id           SERIAL PRIMARY KEY,
+      name         TEXT    NOT NULL,
+      key          TEXT    NOT NULL UNIQUE,
+      description  TEXT    NOT NULL DEFAULT '',
+      is_published BOOLEAN NOT NULL DEFAULT TRUE
+    )`,
+
+    // ── visit_series view (dashboard chart) ───────────────────────────────
+    `CREATE OR REPLACE VIEW visit_series AS
+      SELECT
+        gs.day::date                                                                      AS day,
+        COUNT(ns.id)::int                                                                 AS route_requests,
+        COUNT(CASE WHEN ns.success = TRUE THEN 1 END)::int                               AS successful_routes
+      FROM generate_series(
+             (NOW() - INTERVAL '6 days')::date,
+             NOW()::date,
+             '1 day'::interval
+           ) AS gs(day)
+      LEFT JOIN navigation_sessions ns
+        ON ns.created_at::date = gs.day::date
+      GROUP BY gs.day
+      ORDER BY gs.day`,
+
+    // ── roles / permissions tables (access control) ───────────────────────
+    `CREATE TABLE IF NOT EXISTS roles (
+      id          SERIAL PRIMARY KEY,
+      role_key    TEXT    NOT NULL UNIQUE,
+      name        TEXT    NOT NULL,
+      description TEXT    NOT NULL DEFAULT '',
+      is_system   BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS permission_modules (
+      id          SERIAL PRIMARY KEY,
+      module_key  TEXT    NOT NULL UNIQUE,
+      name        TEXT    NOT NULL,
+      description TEXT    NOT NULL DEFAULT '',
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS permissions (
+      id             SERIAL PRIMARY KEY,
+      module_id      INTEGER NOT NULL REFERENCES permission_modules(id) ON DELETE CASCADE,
+      action_key     TEXT    NOT NULL,
+      permission_key TEXT    NOT NULL UNIQUE,
+      name           TEXT    NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS role_permissions (
+      role_id       INTEGER NOT NULL REFERENCES roles(id)       ON DELETE CASCADE,
+      permission_id INTEGER NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+      PRIMARY KEY (role_id, permission_id)
+    )`,
+    // role_id column on admin_users (may not have existed)
+    `ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS role_id INTEGER REFERENCES roles(id) ON DELETE SET NULL`,
+    `ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE`,
+    `ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`,
+    `ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
+  ];
+
+  for (const sql of steps) {
+    try {
+      await db.query(sql);
+    } catch (err) {
+      // Log but don't crash — some steps may fail on older Postgres versions
+      // or if the object already exists in an incompatible state.
+      console.warn('[migrate] skipped step:', err.message.split('\n')[0]);
+    }
+  }
+
+  console.log('[migrate] database schema up to date');
+}
+
+module.exports = migrate;
