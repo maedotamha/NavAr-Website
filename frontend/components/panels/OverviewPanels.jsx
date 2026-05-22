@@ -170,33 +170,57 @@ export function HeatMapPanel() {
 }
 
 export function SessionsPanel({ scope = 'inside' }) {
-  const isInside = scope === 'inside';
-  if (!isInside) return <OutdoorNavigationPanel />;
-  const label = isInside ? 'Inside Navigation Sessions' : 'Outside Navigation Sessions';
-  const description = isInside
-    ? 'Indoor movement from QR anchors through rooms, floors, facilities, and POIs.'
-    : 'Campus movement between blocks, entrances, parking, and exterior destinations.';
+  if (scope !== 'inside') return <OutdoorNavigationPanel />;
   const { data, loading, error, reload } = useFetch(() => api.getSessions(tok(), 'inside'), [scope]);
   const sessions = data?.sessions || [];
+
+  const total     = sessions.length;
+  const completed = sessions.filter(s => s.status === 'completed').length;
+  const canceled  = sessions.filter(s => s.status === 'canceled').length;
+  const started   = sessions.filter(s => s.status === 'started').length;
+  const kpis = [
+    ['Total Sessions', total],
+    ['Completed', completed],
+    ['In Progress', started],
+    ['Canceled', canceled],
+    ['Completion', total > 0 ? `${Math.round((completed / total) * 100)}%` : null],
+  ];
+
+  if (loading) return <article className="actualPanel"><Spin /></article>;
+  if (error) return <article className="actualPanel"><Err msg={error} reload={reload} /></article>;
+
   return (
-    <article className="actualPanel">
-      <PHead title={label} count={sessions.length} action={<span style={{ color: '#64748b', fontSize: 12 }}>{isInside ? 'Inside' : 'Outside'}</span>} />
-      <p style={{ margin: '-8px 20px 16px', color: '#64748b', fontSize: 13 }}>{description}</p>
-      {loading ? <Spin /> : error ? <Err msg={error} reload={reload} /> : sessions.length === 0 ? <Empty /> : (
-        <TTable
-          heads={['QR ID', 'Destination', 'Status', 'Visited Nodes', 'Created']}
-          rows={sessions}
-          renderRow={s => (<>
-            <TD><b>{s.device_id || '–'}</b></TD>
-            <TD muted>{(s.start_name || '–').slice(0, 32)}</TD>
-            <TD muted>{(s.end_name || '–').slice(0, 32)}</TD>
-            <TD>{s.duration_seconds ? `${s.duration_seconds}s` : s.distance_meters ? `${Math.round(s.distance_meters)}m` : '-'}</TD>
-            <TD><Pill v={s.success ? 'Successful' : 'Failed'} /></TD>
-            <TD center>{s.recovery_count || 0}</TD>
-          </>)}
-        />
-      )}
-    </article>
+    <div className="actualPage">
+      <div className="actualMetricGrid">
+        {kpis.map(([label, value]) => (
+          <article className="actualMetric" key={label}>
+            <small>{label}</small>
+            <strong>{value ?? '-'}</strong>
+          </article>
+        ))}
+      </div>
+
+      <article className="actualPanel">
+        <PHead title="Inside Navigation Sessions" count={sessions.length} action={<span style={{ color: '#64748b', fontSize: 12 }}>INSIDE</span>} />
+        <p style={{ margin: '-8px 20px 16px', color: '#64748b', fontSize: 13 }}>
+          Indoor movement from QR anchors through rooms, floors, facilities, and POIs.
+        </p>
+        {sessions.length === 0 ? <Empty /> : (
+          <TTable
+            heads={['QR ID', 'Destination', 'Status', 'Visited Nodes', 'Session ID', 'Created']}
+            rows={sessions}
+            renderRow={s => (<>
+              <TD><b>{s.qr_id || '–'}</b></TD>
+              <TD muted>{(s.destination_name || '–').slice(0, 32)}</TD>
+              <TD><Pill v={s.status === 'completed' ? 'Successful' : s.status === 'canceled' ? 'Failed' : s.status || '–'} /></TD>
+              <TD center>{Array.isArray(s.visited_node_ids) ? s.visited_node_ids.length : 0}</TD>
+              <TD muted>{s.session_id ? s.session_id.slice(0, 8) + '…' : '–'}</TD>
+              <TD muted>{s.client_created_at ? new Date(s.client_created_at).toLocaleString() : '–'}</TD>
+            </>)}
+          />
+        )}
+      </article>
+    </div>
   );
 }
 
