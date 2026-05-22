@@ -33,10 +33,37 @@ async function createMarker(input){
 }
 async function createSession(input){
   const result = await db.query(
-    'INSERT INTO navigation_sessions (session_scope, qr_id, start_node, end_node, status, success, visited_node_ids, client_created_at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, COALESCE($8::timestamptz, NOW())) RETURNING *',
-    [input.session_scope || 'inside', input.qr_id || null, input.start_node || null, input.end_node || null, input.status || 'completed', input.success !== false, JSON.stringify(input.visited_node_ids || []), input.client_created_at || null]
+    `INSERT INTO navigation_sessions
+       (session_scope, qr_id, start_node, end_node, status, success, visited_node_ids, client_created_at, client_session_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, COALESCE($8::timestamptz, NOW()), $9)
+     RETURNING *`,
+    [
+      input.session_scope || 'inside',
+      input.qr_id || null,
+      input.start_node || null,
+      input.end_node || null,
+      input.status || 'completed',
+      input.success !== false,
+      JSON.stringify(input.visited_node_ids || []),
+      input.client_created_at || null,
+      input.client_session_id || null
+    ]
   );
+  await createSyncLog('mobile', 'session.create', 'navigation_session', String(result.rows[0].id), 'insert', { status: input.status || 'completed', qr_id: input.qr_id || null });
   return result.rows[0];
+}
+
+// Upsert by client_session_id: update if exists, create if not.
+// Used by /end, /cancel, and /sync when the mobile provides its own UUID.
+async function upsertSessionByClientId(clientSessionId, input){
+  const existing = await db.query(
+    'SELECT id FROM navigation_sessions WHERE client_session_id = $1 LIMIT 1',
+    [clientSessionId]
+  );
+  if(existing.rowCount){
+    return updateSession(existing.rows[0].id, input);
+  }
+  return createSession({ ...input, client_session_id: clientSessionId });
 }
 async function createSessions(items){
   const saved = [];
@@ -302,6 +329,7 @@ async function updateSession(id, input){
     'UPDATE navigation_sessions SET session_scope = $2, qr_id = $3, start_node = $4, end_node = $5, status = $6, success = $7, visited_node_ids = $8::jsonb WHERE id = $1 RETURNING *',
     [id, input.session_scope || 'inside', input.qr_id || null, input.start_node || null, input.end_node || null, input.status || 'completed', input.success !== false, JSON.stringify(input.visited_node_ids || [])]
   );
+  if(result.rows[0]) await createSyncLog('mobile', 'session.update', 'navigation_session', String(id), 'update', { status: input.status || 'completed', qr_id: input.qr_id || null });
   return result.rows[0] || null;
 }
 
@@ -403,6 +431,7 @@ async function createFeedback(input){
     'INSERT INTO feedback (type, chips, message, rating, session_id, node_id, status) VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7) RETURNING *',
     [input.type || 'feedback', JSON.stringify(input.chips || []), input.message, input.rating || null, input.session_id || null, input.node_id || null, 'open']
   );
+  await createSyncLog('mobile', 'feedback.create', 'feedback', String(result.rows[0].id), 'insert', { chips: input.chips || [], session_id: input.session_id || null });
   return result.rows[0];
 }
 
@@ -441,13 +470,62 @@ async function updateSettingsByCategory(category, settingsJson){
   return result.rows[0].settings_json;
 }
 
-module.exports = { 
-  listBuildings, createBuilding, listNodes, createNode, listRoutes, createRoute, listMarkers, createMarker, 
-  createSession, updateSession, createSessions, nearestNode, dashboardCounts, usageSeries, popularNodes, heatPoints, 
+async function mergeSourceRecord(record){
+  const result = await db.query(`
+    INSERT INTO source_records (source, record_type, dedupe_key, external_id, name, latitude, longitude, data_json, first_seen_at, last_seen_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW(), NOW())
+    ON CONFLICT (source, record_type, dedupe_key)
+    DO UPDATE SET
+      external_id = COALESCE(EXCLUDED.external_id, source_records.external_id),
+      name = COALESCE(EXCLUDED.name, source_records.name),
+      latitude = COALESCE(EXCLUDED.latitude, source_records.latitude),
+      longitude = COALESCE(EXCLUDED.longitude, source_records.longitude),
+      data_json = source_records.data_json || EXCLUDED.data_json,
+      last_seen_at = NOW(),
+      updated_at = NOW()
+    RETURNING id, (xmax = 0) AS inserted
+  `, [
+    record.source,
+    record.record_type,
+    record.dedupe_key,
+    record.external_id || null,
+    record.name || null,
+    record.latitude ?? null,
+    record.longitude ?? null,
+    JSON.stringify(record.data_json || {})
+  ]);
+  const row = result.rows[0];
+  await createSyncLog(record.source, 'record.merge', record.record_type, record.dedupe_key, row.inserted ? 'insert' : 'merge', { source_record_id: row.id });
+  return row;
+}
+
+async function mergeSourceRecords(records){
+  const summary = { inserted: 0, merged: 0, total: 0 };
+  for(const record of records){
+    const row = await mergeSourceRecord(record);
+    summary.total += 1;
+    if(row.inserted) summary.inserted += 1;
+    else summary.merged += 1;
+  }
+  return summary;
+}
+
+async function createSyncLog(source, operation, recordType, dedupeKey, action, details = {}){
+  const result = await db.query(
+    'INSERT INTO sync_logs (source, operation, record_type, dedupe_key, action, details_json) VALUES ($1, $2, $3, $4, $5, $6::jsonb) RETURNING *',
+    [source, operation, recordType || null, dedupeKey || null, action || null, JSON.stringify(details || {})]
+  );
+  return result.rows[0];
+}
+
+module.exports = {
+  listBuildings, createBuilding, listNodes, createNode, listRoutes, createRoute, listMarkers, createMarker,
+  createSession, updateSession, upsertSessionByClientId, createSessions, nearestNode, dashboardCounts, usageSeries, popularNodes, heatPoints, 
   findAdminByEmail, findAdminById, updateAdminLastLogin, getPermissionsForAdmin, getAccessControlOverview, 
   createRole, updateRole, deleteRole, assignUserRole, createAdminUser, updateAdminUser, deleteAdminUser, 
   createPermissionModule, updatePermissionModule, deletePermissionModule,
   listSessions, listSyncs, listQrScans, listPoiCategories, createPoiCategory, patchPoiVisibility, 
   getAccessibilityOverview, listAccessLogs, createAccessLog, createFeedback, listFeedback, 
-  updateFeedbackStatus, getSettings, getSettingsByCategory, updateSettingsByCategory
+  updateFeedbackStatus, getSettings, getSettingsByCategory, updateSettingsByCategory,
+  mergeSourceRecord, mergeSourceRecords, createSyncLog
 };
