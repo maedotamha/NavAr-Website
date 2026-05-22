@@ -1,5 +1,7 @@
-const AppError = require('../../domain/AppError');
 const env = require('../../config/env');
+const createExternalFetchService = require('./externalFetchService');
+const createDatabaseSyncService = require('./databaseSyncService');
+const { normalizeOutdoorPayload, normalizeOutdoorStats } = require('./externalNormalizationService');
 
 const ENDPOINTS = {
   stats: '/api/admin/stats',
@@ -25,24 +27,6 @@ function toQuery(params = {}) {
   return text ? '?' + text : '';
 }
 
-function assertConfigured() {
-  if (!env.outdoorNavApiUrl) throw new AppError('OUTDOOR_NAV_API_URL is not configured', 503);
-}
-
-async function fetchOutdoor(path) {
-  assertConfigured();
-  const response = await fetch(env.outdoorNavApiUrl + path, { headers: { Accept: 'application/json' } });
-  const text = await response.text();
-  let data = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch (_error) {
-    throw new AppError('Outdoor navigation API returned invalid JSON', 502);
-  }
-  if (!response.ok) throw new AppError(data?.error || 'Outdoor navigation API request failed', response.status);
-  return data;
-}
-
 function normalizeRecentSession(session) {
   return {
     id: session.session_id,
@@ -59,30 +43,39 @@ function normalizeRecentSession(session) {
   };
 }
 
-function createOutdoorNavigationService() {
+function createOutdoorNavigationService(repo) {
+  const fetchService = createExternalFetchService({ baseUrl: env.outdoorNavApiUrl, source: 'outdoor' });
+  const syncService = createDatabaseSyncService(repo);
+  async function fetchAndSync(path, recordType, operation, normalizer = data => normalizeOutdoorPayload(recordType, data)) {
+    const data = await fetchService.fetchJson(path);
+    const records = normalizer(data);
+    if (records.length) await syncService.syncRecords(records, operation);
+    else await syncService.log('outdoor', operation, recordType, null, 'empty', { path });
+    return data;
+  }
   return {
     async analytics() {
       const [stats, heatmap, destinations, routes, recent, searches] = await Promise.all([
-        fetchOutdoor(ENDPOINTS.stats),
-        fetchOutdoor(ENDPOINTS.heatmap),
-        fetchOutdoor(ENDPOINTS.destinations),
-        fetchOutdoor(ENDPOINTS.routes),
-        fetchOutdoor(ENDPOINTS.recent),
-        fetchOutdoor(ENDPOINTS.searches)
+        fetchAndSync(ENDPOINTS.stats, 'analytics_stats', 'outdoor.stats.fetch', normalizeOutdoorStats),
+        fetchAndSync(ENDPOINTS.heatmap, 'heatmap_point', 'outdoor.heatmap.fetch'),
+        fetchAndSync(ENDPOINTS.destinations, 'destination', 'outdoor.destinations.fetch'),
+        fetchAndSync(ENDPOINTS.routes, 'route', 'outdoor.routes.fetch'),
+        fetchAndSync(ENDPOINTS.recent, 'navigation_session', 'outdoor.recent.fetch'),
+        fetchAndSync(ENDPOINTS.searches, 'search_term', 'outdoor.searches.fetch')
       ]);
       return { configured: true, stats, heatmap, destinations, routes, recent, searches };
     },
     async sessions() {
-      const recent = await fetchOutdoor(ENDPOINTS.recent);
+      const recent = await fetchAndSync(ENDPOINTS.recent, 'navigation_session', 'outdoor.sessions.fetch');
       return { sessions: Array.isArray(recent) ? recent.map(normalizeRecentSession) : [] };
     },
-    map: () => fetchOutdoor(ENDPOINTS.map),
-    mapDestinations: query => fetchOutdoor(ENDPOINTS.mapDestinations + toQuery({ q: query.q, type: query.type })),
-    mapNodes: query => fetchOutdoor(ENDPOINTS.mapNodes + toQuery({ type: query.type })),
-    mapNode: id => fetchOutdoor('/api/map/nodes/' + encodeURIComponent(id)),
-    mapEdges: query => fetchOutdoor(ENDPOINTS.mapEdges + toQuery({ mode: query.mode })),
-    route: query => fetchOutdoor(ENDPOINTS.route + toQuery({ fromId: query.fromId, toId: query.toId, mode: query.mode })),
-    recentSearches: () => fetchOutdoor(ENDPOINTS.recentSearches)
+    map: () => fetchAndSync(ENDPOINTS.map, 'map_graph', 'outdoor.map.fetch', data => normalizeOutdoorPayload('map_graph', data)),
+    mapDestinations: query => fetchAndSync(ENDPOINTS.mapDestinations + toQuery({ q: query.q, type: query.type }), 'destination', 'outdoor.map_destinations.fetch'),
+    mapNodes: query => fetchAndSync(ENDPOINTS.mapNodes + toQuery({ type: query.type }), 'map_node', 'outdoor.map_nodes.fetch'),
+    mapNode: id => fetchAndSync('/api/map/nodes/' + encodeURIComponent(id), 'map_node', 'outdoor.map_node.fetch'),
+    mapEdges: query => fetchAndSync(ENDPOINTS.mapEdges + toQuery({ mode: query.mode }), 'map_edge', 'outdoor.map_edges.fetch'),
+    route: query => fetchAndSync(ENDPOINTS.route + toQuery({ fromId: query.fromId, toId: query.toId, mode: query.mode }), 'computed_route', 'outdoor.route.fetch'),
+    recentSearches: () => fetchAndSync(ENDPOINTS.recentSearches, 'search_term', 'outdoor.recent_searches.fetch')
   };
 }
 

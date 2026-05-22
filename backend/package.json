@@ -8,7 +8,7 @@
     "start": "npm run db:init && node src/server.js",
     "db:init": "node scripts/init-db.js",
     "db:seed": "node scripts/seed-db.js",
-    "check": "node --check src/server.js && node --check src/domain/pathfinding.js && node --check src/application/services/navigationService.js && node --check src/application/services/outdoorNavigationService.js && node --check src/interfaces/http/controllers/outdoorNavigationController.js && node --check src/interfaces/http/routes.js && node --check scripts/init-db.js && node --check scripts/seed-db.js"
+    "check": "node --check src/server.js && node --check src/domain/pathfinding.js && node --check src/application/services/navigationService.js && node --check src/application/services/externalFetchService.js && node --check src/application/services/externalNormalizationService.js && node --check src/application/services/externalMergeService.js && node --check src/application/services/databaseSyncService.js && node --check src/application/services/outdoorNavigationService.js && node --check src/interfaces/http/controllers/outdoorNavigationController.js && node --check src/interfaces/http/routes.js && node --check scripts/init-db.js && node --check scripts/seed-db.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

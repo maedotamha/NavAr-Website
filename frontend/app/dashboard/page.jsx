@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { getSidebar } from '../../lib/api';
-import { OverviewPanel, SessionsPanel, SyncPanel } from '../../components/panels/OverviewPanels';
-import CampusHeatMap from '../../components/CampusHeatMap';
+import { OverviewPanel, HeatMapPanel, SessionsPanel, SyncPanel } from '../../components/panels/OverviewPanels';
 import { QrRegistryPanel, ScanHistoryPanel } from '../../components/panels/QrPanels';
 import { PoiDirectoryPanel, BlocksPanel, RoomsPanel } from '../../components/panels/PoiLocationPanels';
 import { UsersPanel, RolesPanel, PermissionsPanel, AccessLogsPanel } from '../../components/panels/UsersPanels';
@@ -86,7 +85,7 @@ function ActiveContent({ pageKey }) {
     case 'dashboard.overview':
       return <OverviewPanel />;
     case 'dashboard.heat_map':
-      return <CampusHeatMap />;
+      return <HeatMapPanel />;
     case 'sessions':
     case 'sessions.inside':
       return <SessionsPanel scope="inside" />;

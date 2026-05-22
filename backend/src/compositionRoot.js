@@ -22,7 +22,7 @@ const navigationService = createNavigationService(repo);
 const authService = createAuthService(repo);
 const accessControlService = createAccessControlService(repo);
 const sidebarService = createSidebarService();
-const outdoorNavigationService = createOutdoorNavigationService();
+const outdoorNavigationService = createOutdoorNavigationService(repo);
 module.exports = {
   catalogController: createCatalogController(catalogService),
   dashboardController: createDashboardController(dashboardService),
