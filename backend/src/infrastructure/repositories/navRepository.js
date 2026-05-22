@@ -34,36 +34,34 @@ async function createMarker(input){
 async function createSession(input){
   const result = await db.query(
     `INSERT INTO navigation_sessions
-       (session_scope, qr_id, start_node, end_node, status, success, visited_node_ids, client_created_at, client_session_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, COALESCE($8::timestamptz, NOW()), $9)
+       (session_scope, qr_id, destination, status, visited_node_ids, client_created_at, session_id)
+     VALUES ($1, $2, $3, $4, $5::jsonb, COALESCE($6::timestamptz, NOW()), $7)
      RETURNING *`,
     [
       input.session_scope || 'inside',
       input.qr_id || null,
-      input.start_node || null,
-      input.end_node || null,
+      input.destination || input.end_node || null,
       input.status || 'completed',
-      input.success !== false,
       JSON.stringify(input.visited_node_ids || []),
       input.client_created_at || null,
-      input.client_session_id || null
+      input.session_id || input.client_session_id || null
     ]
   );
   await createSyncLog('mobile', 'session.create', 'navigation_session', String(result.rows[0].id), 'insert', { status: input.status || 'completed', qr_id: input.qr_id || null });
   return result.rows[0];
 }
 
-// Upsert by client_session_id: update if exists, create if not.
+// Upsert by session_id (client UUID): update if exists, create if not.
 // Used by /end, /cancel, and /sync when the mobile provides its own UUID.
 async function upsertSessionByClientId(clientSessionId, input){
   const existing = await db.query(
-    'SELECT id FROM navigation_sessions WHERE client_session_id = $1 LIMIT 1',
+    'SELECT id FROM navigation_sessions WHERE session_id = $1 LIMIT 1',
     [clientSessionId]
   );
   if(existing.rowCount){
     return updateSession(existing.rows[0].id, input);
   }
-  return createSession({ ...input, client_session_id: clientSessionId });
+  return createSession({ ...input, session_id: clientSessionId });
 }
 async function createSessions(items){
   const saved = [];
@@ -84,15 +82,13 @@ async function usageSeries(){
   return result.rows;
 }
 async function popularNodes(){
-  const result = await db.query('SELECT nn.id, nn.node_name, COUNT(ns.id)::int AS visits FROM navigation_nodes nn LEFT JOIN navigation_sessions ns ON ns.end_node = nn.id GROUP BY nn.id, nn.node_name ORDER BY visits DESC, nn.id LIMIT 8');
+  const result = await db.query('SELECT nn.id, nn.node_name, COUNT(ns.id)::int AS visits FROM navigation_nodes nn LEFT JOIN navigation_sessions ns ON ns.destination = nn.id GROUP BY nn.id, nn.node_name ORDER BY visits DESC, nn.id LIMIT 8');
   return result.rows;
 }
 async function heatPoints(){
   const result = await db.query(`
     WITH session_nodes AS (
-      SELECT start_node::text AS node_id FROM navigation_sessions WHERE start_node IS NOT NULL
-      UNION ALL
-      SELECT end_node::text AS node_id FROM navigation_sessions WHERE end_node IS NOT NULL
+      SELECT destination::text AS node_id FROM navigation_sessions WHERE destination IS NOT NULL
       UNION ALL
       SELECT jsonb_array_elements_text(COALESCE(visited_node_ids, '[]'::jsonb)) AS node_id FROM navigation_sessions
     )
@@ -326,21 +322,21 @@ function titleCase(value){
 
 async function updateSession(id, input){
   const result = await db.query(
-    'UPDATE navigation_sessions SET session_scope = $2, qr_id = $3, start_node = $4, end_node = $5, status = $6, success = $7, visited_node_ids = $8::jsonb WHERE id = $1 RETURNING *',
-    [id, input.session_scope || 'inside', input.qr_id || null, input.start_node || null, input.end_node || null, input.status || 'completed', input.success !== false, JSON.stringify(input.visited_node_ids || [])]
+    'UPDATE navigation_sessions SET session_scope = $2, qr_id = $3, destination = $4, status = $5, visited_node_ids = $6::jsonb WHERE id = $1 RETURNING *',
+    [id, input.session_scope || 'inside', input.qr_id || null, input.destination || input.end_node || null, input.status || 'completed', JSON.stringify(input.visited_node_ids || [])]
   );
   if(result.rows[0]) await createSyncLog('mobile', 'session.update', 'navigation_session', String(id), 'update', { status: input.status || 'completed', qr_id: input.qr_id || null });
   return result.rows[0] || null;
 }
 
 async function listSessions(filters = {}){
-  let queryText = 'SELECT ns.*, sn.node_name AS start_name, en.node_name AS end_name FROM navigation_sessions ns LEFT JOIN navigation_nodes sn ON sn.id = ns.start_node LEFT JOIN navigation_nodes en ON en.id = ns.end_node';
+  let queryText = 'SELECT ns.*, en.node_name AS destination_name FROM navigation_sessions ns LEFT JOIN navigation_nodes en ON en.id = ns.destination';
   const params = [];
   const where = [];
   if(filters.status === 'active'){
-    where.push("ns.created_at >= NOW() - INTERVAL '15 minutes'");
+    where.push("ns.client_created_at >= NOW() - INTERVAL '15 minutes'");
   } else if(filters.status === 'failed'){
-    where.push('ns.success = FALSE');
+    where.push("ns.status = 'canceled'");
   }
   if(filters.scope === 'inside' || filters.scope === 'outside'){
     params.push(filters.scope);
@@ -354,7 +350,7 @@ async function listSessions(filters = {}){
 
 async function listSyncs(){
   const result = await db.query(
-    "SELECT session_scope, MAX(created_at) AS last_sync_time, COUNT(*)::int AS session_count, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END)::int AS successful_count FROM navigation_sessions GROUP BY session_scope ORDER BY last_sync_time DESC"
+    "SELECT session_scope, MAX(client_created_at) AS last_sync_time, COUNT(*)::int AS session_count, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END)::int AS successful_count FROM navigation_sessions GROUP BY session_scope ORDER BY last_sync_time DESC"
   );
   return result.rows;
 }
@@ -431,9 +427,9 @@ async function resolveSessionDbId(sessionIdInput){
   if(!sessionIdInput) return null;
   const asInt = Number(sessionIdInput);
   if(Number.isInteger(asInt) && asInt > 0) return asInt;
-  // UUID string — look up by client_session_id
+  // UUID string — look up by session_id
   const r = await db.query(
-    'SELECT id FROM navigation_sessions WHERE client_session_id = $1 LIMIT 1',
+    'SELECT id FROM navigation_sessions WHERE session_id = $1 LIMIT 1',
     [String(sessionIdInput)]
   );
   return r.rows[0]?.id || null;
