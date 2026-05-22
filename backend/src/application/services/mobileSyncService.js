@@ -173,7 +173,8 @@ function createMobileSyncService(repo){
       chips:      Array.isArray(input.chips) ? input.chips.map(c => String(c)).filter(Boolean) : [],
       message:    input.comment || input.message || null,
       rating:     input.rating ? integer(Number(input.rating), 'rating') : null,
-      session_id: input.session_id ? integer(Number(input.session_id), 'session_id') : null,
+      // session_id may be a client UUID string or a DB integer — repo resolves it
+      session_id: input.session_id || null,
       node_id:    null
     })
   };

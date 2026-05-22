@@ -73,9 +73,14 @@ async function migrate() {
     )`,
 
     // ── visit_series view (dashboard chart) ───────────────────────────────
-    // Drop first in case it exists as a table/matview from a previous version
-    `DROP TABLE IF EXISTS visit_series CASCADE`,
-    `DROP MATERIALIZED VIEW IF EXISTS visit_series CASCADE`,
+    // init-db.js created visit_series as a TABLE; we replace it with a live VIEW.
+    // We must drop the table variant first — DROP VIEW/MATVIEW won't touch a table.
+    `DO $$ BEGIN
+       IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                  WHERE c.relname = 'visit_series' AND c.relkind = 'r' AND n.nspname = 'public')
+       THEN DROP TABLE visit_series CASCADE;
+       END IF;
+     END $$`,
     `CREATE OR REPLACE VIEW visit_series AS
       SELECT
         gs.day::date                                                                      AS day,

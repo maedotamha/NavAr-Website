@@ -426,12 +426,26 @@ async function createAccessLog(actor, action, target){
   return result.rows[0];
 }
 
+// Resolve session_id: accepts either a DB integer id or a client UUID string.
+async function resolveSessionDbId(sessionIdInput){
+  if(!sessionIdInput) return null;
+  const asInt = Number(sessionIdInput);
+  if(Number.isInteger(asInt) && asInt > 0) return asInt;
+  // UUID string — look up by client_session_id
+  const r = await db.query(
+    'SELECT id FROM navigation_sessions WHERE client_session_id = $1 LIMIT 1',
+    [String(sessionIdInput)]
+  );
+  return r.rows[0]?.id || null;
+}
+
 async function createFeedback(input){
+  const sessionDbId = await resolveSessionDbId(input.session_id);
   const result = await db.query(
     'INSERT INTO feedback (type, chips, message, rating, session_id, node_id, status) VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7) RETURNING *',
-    [input.type || 'feedback', JSON.stringify(input.chips || []), input.message, input.rating || null, input.session_id || null, input.node_id || null, 'open']
+    [input.type || 'feedback', JSON.stringify(input.chips || []), input.message, input.rating || null, sessionDbId, input.node_id || null, 'open']
   );
-  await createSyncLog('mobile', 'feedback.create', 'feedback', String(result.rows[0].id), 'insert', { chips: input.chips || [], session_id: input.session_id || null });
+  await createSyncLog('mobile', 'feedback.create', 'feedback', String(result.rows[0].id), 'insert', { chips: input.chips || [], session_id: sessionDbId });
   return result.rows[0];
 }
 
