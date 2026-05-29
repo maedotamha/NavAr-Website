@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import * as api from '../../lib/api';
-import { tok, useFetch, Pill, PHead, Empty, Spin, Err, Btn, Input, Sel, FGrid, TTable, TD, MsgBox, ConfirmDialog } from './shared';
+import { tok, useFetch, Pill, PHead, Empty, Spin, Err, Btn, Input, Sel, FGrid, TTable, TD, MsgBox, ConfirmDialog, toast } from './shared';
 
 // Modules that are purely internal/infrastructure — hide from permission UI
 const HIDDEN_MODULE_KEYS = ['routes', 'navigation', 'outdoor_navigation', 'maps', 'qr_anchors', 'analytics', 'pathfinding'];
@@ -59,7 +59,7 @@ export function UsersPanel() {
 
   async function assignRole(userId, roleId) {
     try { await api.assignUserRole(tok(), userId, Number(roleId)); reload(); }
-    catch (err) { alert(err.message); }
+    catch (err) { toast(err.message); }
   }
 
   async function remove(id) {
@@ -209,7 +209,7 @@ export function RolesPanel() {
     try {
       await api.updateRole(tok(), selectedRole.id, { name: selectedRole.name, description: selectedRole.description || '', permissions });
       reload();
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast(err.message); }
   }
 
   return (
@@ -321,11 +321,12 @@ export function AccessLogsPanel() {
       <PHead title="Access Audit Logs" count={logs.length} />
       {loading ? <Spin /> : error ? <Err msg={error} reload={reload} /> : logs.length === 0 ? <Empty /> : (
         <TTable
-          heads={['Actor', 'Action', 'Target', 'Timestamp']}
+          heads={['Actor', 'Role', 'Action', 'Target', 'Timestamp']}
           rows={logs}
           renderRow={log => (
             <>
               <TD><b>{log.actor}</b></TD>
+              <TD><Pill v={log.role || '-'} /></TD>
               <TD muted>{log.action}</TD>
               <TD muted>{log.target}</TD>
               <TD muted>{log.created_at ? new Date(log.created_at).toLocaleString() : '-'}</TD>

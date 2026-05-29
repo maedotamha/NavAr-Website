@@ -1,5 +1,68 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+// ── Global toast system ───────────────────────────────────────────────────────
+const _toastListeners = [];
+
+export function toast(msg, type = 'error') {
+  const id = Date.now() + Math.random();
+  _toastListeners.forEach(fn => fn({ id, msg: String(msg || 'An error occurred.'), type }));
+}
+
+export function ToastContainer() {
+  const [items, setItems] = useState([]);
+  const timers = useRef({});
+
+  useEffect(() => {
+    function handler(t) {
+      setItems(prev => [...prev.slice(-4), t]);          // keep max 5
+      timers.current[t.id] = setTimeout(() => dismiss(t.id), 5000);
+    }
+    _toastListeners.push(handler);
+    return () => {
+      const i = _toastListeners.indexOf(handler);
+      if (i > -1) _toastListeners.splice(i, 1);
+    };
+  }, []);
+
+  function dismiss(id) {
+    clearTimeout(timers.current[id]);
+    delete timers.current[id];
+    setItems(prev => prev.filter(x => x.id !== id));
+  }
+
+  if (items.length === 0) return null;
+
+  const styles = {
+    error:   { bg: '#fef2f2', border: '#fecaca', color: '#991b1b', icon: '⚠' },
+    success: { bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d', icon: '✓' },
+    info:    { bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8', icon: 'ℹ' },
+  };
+
+  return (
+    <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, display: 'grid', gap: 8, width: 360, pointerEvents: 'none' }}>
+      {items.map(t => {
+        const s = styles[t.type] || styles.error;
+        const isPermission = t.msg.includes('Missing permission') || t.msg.includes('permission') || t.msg.includes('403');
+        return (
+          <div key={t.id} style={{ background: s.bg, border: `1px solid ${s.border}`, color: s.color, borderRadius: 10, padding: '13px 16px', fontSize: 13, fontWeight: 600, boxShadow: '0 8px 30px rgba(15,23,42,0.14)', display: 'grid', gap: 4, pointerEvents: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ fontSize: 16, lineHeight: 1.3, flexShrink: 0 }}>{s.icon}</span>
+              <span style={{ flex: 1, lineHeight: 1.5 }}>{t.msg}</span>
+              <button onClick={() => dismiss(t.id)} style={{ marginLeft: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', opacity: 0.55, fontSize: 18, lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>
+            </div>
+            {isPermission && (
+              <div style={{ marginTop: 4, paddingLeft: 26, fontSize: 12, opacity: 0.85 }}>
+                Sign out and back in to refresh your session permissions.
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function tok() {
   return typeof window !== 'undefined' ? localStorage.getItem('navarAdminToken') || '' : '';

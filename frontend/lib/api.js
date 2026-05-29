@@ -10,7 +10,14 @@ async function apiFetch(path, token, options = {}) {
     }
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'API error');
+  if (!res.ok) {
+    const msg = res.status === 403
+      ? (data.error || 'Permission denied')
+      : (data.error || `Request failed (${res.status})`);
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -29,12 +36,14 @@ export const getQrScans       = (token)              => apiFetch('/admin/qr-scan
 export const getMarkers       = (token)              => apiFetch('/ar-markers', token);
 export const createMarker     = (token, body)        => apiFetch('/ar-markers', token, { method: 'POST', body: JSON.stringify(body) });
 export const getNodes         = (token)              => apiFetch('/navigation-nodes', token);
+export const getPois          = (token)              => apiFetch('/points-of-interest', token);
 export const patchPoiVisibility = (token, id, body) => apiFetch(`/points-of-interest/${id}/visibility`, token, { method: 'PATCH', body: JSON.stringify(body) });
 export const getPoiCategories = (token)              => apiFetch('/poi-categories', token);
 export const createPoiCategory = (token, body)      => apiFetch('/poi-categories', token, { method: 'POST', body: JSON.stringify(body) });
 export const getAccessibility = (token)              => apiFetch('/admin/accessibility', token);
 export const getBuildings     = (token)              => apiFetch('/buildings', token);
 export const createBuilding   = (token, body)        => apiFetch('/buildings', token, { method: 'POST', body: JSON.stringify(body) });
+export const updateBuildingStatus = (token, id, status) => apiFetch(`/buildings/${id}/status`, token, { method: 'PATCH', body: JSON.stringify({ status }) });
 export const getAccessControl = (token)              => apiFetch('/access-control', token);
 export const createRole       = (token, body)        => apiFetch('/access-control/roles', token, { method: 'POST', body: JSON.stringify(body) });
 export const updateRole       = (token, id, body)    => apiFetch(`/access-control/roles/${id}`, token, { method: 'PUT', body: JSON.stringify(body) });
@@ -44,6 +53,7 @@ export const updateUser       = (token, id, body)    => apiFetch(`/access-contro
 export const deleteUser       = (token, id)          => apiFetch(`/access-control/users/${id}`, token, { method: 'DELETE' });
 export const assignUserRole   = (token, uid, roleId) => apiFetch(`/access-control/users/${uid}/role`, token, { method: 'PATCH', body: JSON.stringify({ roleId }) });
 export const getAccessLogs    = (token)              => apiFetch('/access-control/logs', token);
+export const createAccessLog  = (token, body)        => apiFetch('/access-control/logs', token, { method: 'POST', body: JSON.stringify(body) });
 export const getFeedback      = (token, type)        => apiFetch('/admin/feedback' + (type ? `?type=${type}` : ''), token);
 export const getRatings       = (token)              => apiFetch('/admin/feedback/ratings', token);
 export const updateFeedbackStatus = (token, id, status) => apiFetch(`/admin/feedback/${id}/status`, token, { method: 'PATCH', body: JSON.stringify({ status }) });

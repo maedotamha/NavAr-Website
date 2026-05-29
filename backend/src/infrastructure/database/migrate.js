@@ -84,8 +84,40 @@ async function migrate() {
       actor      TEXT,
       action     TEXT,
       target     TEXT,
+      role       TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`,
+    `ALTER TABLE access_logs ADD COLUMN IF NOT EXISTS role TEXT`,
+
+    `CREATE TABLE IF NOT EXISTS source_records (
+      id            SERIAL PRIMARY KEY,
+      source        TEXT NOT NULL,
+      record_type   TEXT NOT NULL,
+      dedupe_key    TEXT NOT NULL,
+      external_id   TEXT,
+      name          TEXT,
+      latitude      DOUBLE PRECISION,
+      longitude     DOUBLE PRECISION,
+      data_json     JSONB NOT NULL DEFAULT '{}'::jsonb,
+      first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_seen_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(source, record_type, dedupe_key)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_source_records_source_type ON source_records(source, record_type)`,
+    `CREATE INDEX IF NOT EXISTS idx_source_records_name ON source_records(name)`,
+    `CREATE TABLE IF NOT EXISTS sync_logs (
+      id           SERIAL PRIMARY KEY,
+      source       TEXT NOT NULL,
+      operation    TEXT NOT NULL,
+      record_type  TEXT,
+      dedupe_key   TEXT,
+      action       TEXT,
+      details_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_sync_logs_source_created ON sync_logs(source, created_at DESC)`,
 
     // ── poi_categories ────────────────────────────────────────────────────
     `CREATE TABLE IF NOT EXISTS poi_categories (
@@ -151,10 +183,41 @@ async function migrate() {
       PRIMARY KEY (role_id, permission_id)
     )`,
     // role_id column on admin_users (may not have existed)
+    `ALTER TABLE buildings ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'`,
     `ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS role_id INTEGER REFERENCES roles(id) ON DELETE SET NULL`,
     `ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE`,
     `ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`,
     `ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
+    `INSERT INTO permissions (module_id, action_key, permission_key, name)
+     SELECT id, 'status', 'facilities.status', 'Change Status'
+     FROM permission_modules
+     WHERE module_key = 'facilities'
+     ON CONFLICT (permission_key) DO NOTHING`,
+    `INSERT INTO role_permissions (role_id, permission_id)
+     SELECT r.id, p.id
+     FROM roles r
+     JOIN permissions p ON p.permission_key = 'facilities.status'
+     WHERE r.role_key IN ('admin', 'facility_manager')
+     ON CONFLICT DO NOTHING`,
+
+    // ── Ensure admin role always has every permission ─────────────────────
+    // Idempotent: ON CONFLICT DO NOTHING skips duplicates.
+    // This fixes the case where permissions were added after the admin role
+    // was created (e.g. facilities.status, access_control.assign, etc.)
+    `INSERT INTO role_permissions (role_id, permission_id)
+     SELECT r.id, p.id
+     FROM roles r
+     CROSS JOIN permissions p
+     WHERE r.role_key = 'admin'
+     ON CONFLICT DO NOTHING`,
+
+    // ── Ensure admin_users.role_id is set for any admin account ──────────
+    `UPDATE admin_users au
+     SET role_id = r.id
+     FROM roles r
+     WHERE r.role_key = 'admin'
+       AND au.role_id IS NULL
+       AND (au.role = 'admin' OR au.role IS NULL)`,
   ];
 
   for (const sql of steps) {

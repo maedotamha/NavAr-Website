@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import * as api from '../../lib/api';
-import { tok, useFetch, Pill, PHead, Empty, Spin, Err, Btn, TTable, TD, MsgBox } from './shared';
+import { tok, useFetch, Pill, PHead, Empty, Spin, Err, Btn, TTable, TD, MsgBox, toast } from './shared';
 
 export function FeedbackInboxPanel() {
   const { data, loading, error, reload } = useFetch(() => api.getFeedback(tok(), 'general'));
@@ -12,7 +12,7 @@ export function FeedbackInboxPanel() {
     try {
       const res = await api.updateFeedbackStatus(tok(), id, status);
       setItems(prev => prev.map(f => f.id === id ? { ...f, ...res.feedback } : f));
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast(err.message); }
   }
 
   return (

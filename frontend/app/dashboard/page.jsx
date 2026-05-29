@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { getSidebar } from '../../lib/api';
+import { createAccessLog, getSidebar } from '../../lib/api';
+import { ToastContainer } from '../../components/panels/shared';
 import { OverviewPanel, HeatMapPanel, SessionsPanel, SyncPanel } from '../../components/panels/OverviewPanels';
-import { QrRegistryPanel, ScanHistoryPanel } from '../../components/panels/QrPanels';
-import { PoiDirectoryPanel, BlocksPanel, RoomsPanel } from '../../components/panels/PoiLocationPanels';
+import { QrRegistryPanel } from '../../components/panels/QrPanels';
+import { PoiDirectoryPanel, BlocksPanel } from '../../components/panels/PoiLocationPanels';
 import { UsersPanel, RolesPanel, PermissionsPanel, AccessLogsPanel } from '../../components/panels/UsersPanels';
 import { FeedbackInboxPanel, RouteIssuesPanel } from '../../components/panels/FeedbackPanels';
 import { SettingsPanel } from '../../components/panels/SettingsPanels';
@@ -37,12 +38,10 @@ const PAGE_TITLES = {
   'sessions.outside': 'Outside Navigation Sessions',
   qr_codes: 'QR Codes',
   'qr_codes.registry': 'QR Anchor Registry',
-  'qr_codes.scans': 'Scan History',
   points_of_interest: 'Points of Interest',
   'points_of_interest.list': 'POI Directory',
   locations: 'Locations',
   'locations.blocks': 'Blocks & Floors',
-  'locations.rooms': 'Rooms & Facilities',
   users_roles: 'Users & Roles',
   'users_roles.users': 'Users',
   'users_roles.roles': 'Roles',
@@ -64,10 +63,8 @@ const PAGE_SUBTITLES = {
   'sessions.inside': 'Indoor route sessions that start from QR positioning and move through blocks, rooms, floors, and POIs.',
   'sessions.outside': 'Outdoor/campus route sessions that move users between blocks, entrances, parking, and exterior destinations.',
   'qr_codes.registry': 'All registered AR marker anchors and their linked navigation nodes.',
-  'qr_codes.scans': 'Timeline of QR code scans received from mobile devices.',
   'points_of_interest.list': 'Manage searchable destinations. Toggle published and staff-only flags.',
   'locations.blocks': 'Campus block and building records.',
-  'locations.rooms': 'Rooms, offices, labs, restrooms, stairs, lifts and service points.',
   'users_roles.users': 'Create and manage admin and staff user accounts.',
   'users_roles.roles': 'Define what each admin role can access.',
   'users_roles.permissions': 'Module action permissions assigned across all roles.',
@@ -94,16 +91,12 @@ function ActiveContent({ pageKey }) {
     case 'qr_codes':
     case 'qr_codes.registry':
       return <QrRegistryPanel />;
-    case 'qr_codes.scans':
-      return <ScanHistoryPanel />;
     case 'points_of_interest':
     case 'points_of_interest.list':
       return <PoiDirectoryPanel />;
     case 'locations':
     case 'locations.blocks':
       return <BlocksPanel />;
-    case 'locations.rooms':
-      return <RoomsPanel />;
     case 'users_roles':
     case 'users_roles.users':
       return <UsersPanel />;
@@ -155,6 +148,14 @@ export default function DashboardPage() {
       .catch(err => { setError(err.message); setReady(true); });
   }, []);
 
+  useEffect(() => {
+    if (!ready || !activePage) return;
+    const token = localStorage.getItem('navarAdminToken');
+    if (!token) return;
+    const title = PAGE_TITLES[activePage] || activePage;
+    createAccessLog(token, { action: 'Visited Page', target: title }).catch(() => {});
+  }, [ready, activePage]);
+
   if (!ready) return <main className="loadingPage">Loading NavAR dashboard…</main>;
   if (error) return <main className="loadingPage">Could not load sidebar: {error}</main>;
 
@@ -166,6 +167,7 @@ export default function DashboardPage() {
 
   return (
     <main className={collapsed ? 'adminShell sidebarCollapsed' : 'adminShell'}>
+      <ToastContainer />
       <aside className="adminSidebar" aria-label="Admin modules">
         <div className="adminSidebarBrand">
           <div>

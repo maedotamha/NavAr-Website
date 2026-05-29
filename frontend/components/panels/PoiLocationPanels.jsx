@@ -1,16 +1,26 @@
 'use client';
 import { useEffect, useState } from 'react';
 import * as api from '../../lib/api';
-import { tok, useFetch, Pill, PHead, Empty, Spin, Err, Btn, Input, Sel, FGrid, TTable, TD, MsgBox } from './shared';
+import { tok, useFetch, Pill, PHead, Empty, Spin, Err, Btn, Input, Sel, FGrid, TTable, TD, MsgBox, toast } from './shared';
 
 export function PoiDirectoryPanel() {
   const { data, loading, error, reload } = useFetch(() => api.getNodes(tok()));
+  const { data: poiData, loading: poiLoading } = useFetch(() => api.getPois(tok()));
   const { data: outdoorNodesData, loading: outdoorLoading, error: outdoorError } = useFetch(() => api.getOutdoorNodes(tok()));
   const [nodes, setNodes] = useState([]);
   useEffect(() => { if (data?.nodes) setNodes(data.nodes); }, [data]);
+  const floorPois = poiData?.pois || [];
   const outdoorNodes = Array.isArray(outdoorNodesData) ? outdoorNodesData : (outdoorNodesData?.nodes || []);
-  const rows = [
-    ...nodes.map(node => ({ ...node, source: 'Inside', display_name: node.node_name, detail: node.floor_label || '-', editable: true })),
+  const nodeRows = [
+    ...nodes.map(node => ({
+      ...node,
+      source: node.source === 'floor-data' ? 'Floor Data' : 'Inside',
+      display_name: node.node_name,
+      detail: node.source === 'floor-data'
+        ? `${node.location_name || '-'} / ${node.qr_id || '-'}`
+        : node.floor_label || '-',
+      editable: node.source !== 'floor-data'
+    })),
     ...outdoorNodes
       .filter(node => node.type !== 'junction')
       .map(node => ({
@@ -24,21 +34,42 @@ export function PoiDirectoryPanel() {
         editable: false
       }))
   ];
+  const poiRows = floorPois.map(poi => ({
+    ...poi,
+    display_name: poi.location_name || poi.poi_name,
+    detail: (poi.entrance_node_ids || []).join(', ') || '-'
+  }));
 
   async function toggle(id, field, current) {
     try {
       const res = await api.patchPoiVisibility(tok(), id, { [field]: !current });
       setNodes(ns => ns.map(n => n.id === id ? { ...n, ...res.node } : n));
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast(err.message); }
   }
 
   return (
+    <div className="actualPage">
     <article className="actualPanel">
-      <PHead title="POI Directory" count={rows.length} />
-      {loading || outdoorLoading ? <Spin /> : error ? <Err msg={error} reload={reload} /> : rows.length === 0 ? <Empty /> : (
+      <PHead title="Floor Points of Interest" count={poiRows.length} />
+      {poiLoading ? <Spin /> : poiRows.length === 0 ? <Empty /> : (
         <TTable
-          heads={['Name', 'Source', 'Type', 'Detail', 'Published', 'Staff Only']}
-          rows={rows}
+          heads={['Location Name', 'Floor', 'Category', 'Entrance Nodes']}
+          rows={poiRows}
+          renderRow={poi => (<>
+            <TD><b>{poi.display_name}</b></TD>
+            <TD muted>{poi.floor_label}</TD>
+            <TD><Pill v={poi.node_type || '-'} /></TD>
+            <TD muted>{poi.detail}</TD>
+          </>)}
+        />
+      )}
+    </article>
+    <article className="actualPanel">
+      <PHead title="Nodes" count={nodeRows.length} />
+      {loading || outdoorLoading ? <Spin /> : error ? <Err msg={error} reload={reload} /> : nodeRows.length === 0 ? <Empty /> : (
+        <TTable
+          heads={['Node ID', 'Source', 'Type', 'Detail', 'Published', 'Staff Only']}
+          rows={nodeRows}
           renderRow={n => (<>
             <TD><b style={{ maxWidth: 220, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.display_name}</b></TD>
             <TD><Pill v={n.source} /></TD>
@@ -51,6 +82,7 @@ export function PoiDirectoryPanel() {
       )}
       {outdoorError && <div style={{ padding: '0 20px 16px', color: '#b91c1c', fontSize: 13 }}>Outdoor POIs could not load: {outdoorError}</div>}
     </article>
+    </div>
   );
 }
 
@@ -63,7 +95,7 @@ function LegacyPoiDirectoryPanel() {
     try {
       const res = await api.patchPoiVisibility(tok(), id, { [field]: !current });
       setNodes(ns => ns.map(n => n.id === id ? { ...n, ...res.node } : n));
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast(err.message); }
   }
 
   return (
@@ -79,12 +111,12 @@ function LegacyPoiDirectoryPanel() {
             <TD><Pill v={n.node_type || '–'} /></TD>
             <TD center>
               <button onClick={() => toggle(n.id, 'is_published', n.is_published)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 15, lineHeight: 1 }} title="Toggle Published">
-                {n.is_published ? '✅' : '⬜'}
+                {n.is_published ? 'Yes' : 'No'}
               </button>
             </TD>
             <TD center>
               <button onClick={() => toggle(n.id, 'is_staff_only', n.is_staff_only)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 15, lineHeight: 1 }} title="Toggle Staff Only">
-                {n.is_staff_only ? '🔒' : '🔓'}
+                {n.is_staff_only ? 'Yes' : 'No'}
               </button>
             </TD>
           </>)}
@@ -134,7 +166,7 @@ export function PoiCategoriesPanel() {
           <Input label="Description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
         </FGrid>
         <MsgBox msg={msg} />
-        <div><Btn type="submit" size="md" disabled={saving}>{saving ? 'Saving…' : 'Add Category'}</Btn></div>
+        <div><Btn type="submit" size="md" disabled={saving}>{saving ? 'Saving...' : 'Add Category'}</Btn></div>
       </form>
     </article>
   );
@@ -146,6 +178,12 @@ export function BlocksPanel() {
   const [buildings, setBuildings] = useState([]);
   useEffect(() => { if (data?.buildings) setBuildings(data.buildings); }, [data]);
   const destinations = Array.isArray(outdoorData?.destinations) ? outdoorData.destinations : [];
+  async function changeStatus(id, status) {
+    try {
+      const res = await api.updateBuildingStatus(tok(), id, status);
+      setBuildings(items => items.map(item => item.id === id ? { ...item, ...res.building } : item));
+    } catch (err) { toast(err.message); }
+  }
 
   return (
     <div className="actualPage">
@@ -154,7 +192,19 @@ export function BlocksPanel() {
       {loading ? <Spin /> : error ? <Err msg={error} reload={reload} /> : null}
       <div className="actualTable" style={{ margin: '0 20px 16px' }}>
         {buildings.length === 0 && !loading ? <Empty /> : buildings.map(b => (
-          <div key={b.id}><b>{b.name}</b><span>{b.description}</span><Pill v="Active" /></div>
+          <div key={b.id}>
+            <b>{b.name}</b>
+            <span>{b.description}</span>
+            <select
+              aria-label={`Status for ${b.name}`}
+              onChange={event => changeStatus(b.id, event.target.value)}
+              style={{ height: 32, border: '1px solid #cbd5e1', borderRadius: 7, padding: '0 8px', font: 'inherit', fontSize: 12 }}
+              value={b.status || 'active'}
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
         ))}
       </div>
     </article>
@@ -199,8 +249,8 @@ export function RoomsPanel() {
             <TD><b style={{ maxWidth: 220, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.node_name}</b></TD>
             <TD muted>{n.floor_label || '–'}</TD>
             <TD><Pill v={n.node_type || '–'} /></TD>
-            <TD center>{n.is_published ? '✅' : '⬜'}</TD>
-            <TD center>{n.is_staff_only ? '🔒' : '–'}</TD>
+            <TD center>{n.is_published ? 'Yes' : 'No'}</TD>
+            <TD center>{n.is_staff_only ? 'Yes' : 'No'}</TD>
           </>)}
         />
       )}
