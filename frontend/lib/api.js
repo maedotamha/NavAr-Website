@@ -2,6 +2,7 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000
 
 async function apiFetch(path, token, options = {}) {
   const res = await fetch(API_URL + '/api' + path, {
+    cache: 'no-store',
     ...options,
     headers: {
       'Content-Type': 'application/json',
