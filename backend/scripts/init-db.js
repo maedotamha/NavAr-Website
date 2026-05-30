@@ -48,7 +48,7 @@ const statements = [
   'CREATE INDEX IF NOT EXISTS idx_navigation_nodes_location ON navigation_nodes USING GIST(location)',
   'CREATE INDEX IF NOT EXISTS idx_ar_markers_location ON ar_markers USING GIST(location)',
   'CREATE INDEX IF NOT EXISTS idx_routes_start_end ON routes(start_node, end_node)',
-  'CREATE INDEX IF NOT EXISTS idx_sessions_created_at ON navigation_sessions(created_at)',
+  'CREATE INDEX IF NOT EXISTS idx_sessions_created_at ON navigation_sessions(client_created_at)',
   'CREATE INDEX IF NOT EXISTS idx_sessions_scope ON navigation_sessions(session_scope)',
   "CREATE UNIQUE INDEX IF NOT EXISTS navigation_sessions_session_id_idx ON navigation_sessions (session_id) WHERE session_id IS NOT NULL",
   "INSERT INTO roles (role_key, name, description, is_system) VALUES ('admin','Admin','Full platform access',TRUE),('facility_manager','Facility Manager','Manages facilities, maps, QR anchors, and routes',TRUE),('analyst','Analyst','Reads dashboard and analytics data',TRUE) ON CONFLICT (role_key) DO NOTHING",
@@ -64,7 +64,14 @@ const statements = [
   "UPDATE admin_users au SET role_id = r.id FROM roles r WHERE au.role_id IS NULL AND r.role_key = 'admin'"
 ];
 async function main(){
-  for(const statement of statements) await pool.query(statement);
+  for(const [index, statement] of statements.entries()){
+    try{
+      await pool.query(statement);
+    }catch(error){
+      console.error(`[db:init] failed statement ${index + 1}: ${statement.slice(0, 180)}`);
+      throw error;
+    }
+  }
   await ensureDemoAccount('Admin User', 'admin@navar.local', 'Admin@12345', 'admin');
   await ensureDemoAccount('Facility Manager', 'facility@navar.local', 'Facility@12345', 'facility_manager');
   await ensureDemoAccount('Analytics Viewer', 'analyst@navar.local', 'Analyst@12345', 'analyst');
