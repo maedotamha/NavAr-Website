@@ -89,7 +89,7 @@ async function usageSeries(){
   return result.rows;
 }
 async function popularNodes(){
-  const result = await db.query('SELECT nn.id, nn.node_name, COUNT(ns.id)::int AS visits FROM navigation_nodes nn LEFT JOIN navigation_sessions ns ON ns.destination = nn.id GROUP BY nn.id, nn.node_name ORDER BY visits DESC, nn.id LIMIT 8');
+  const result = await db.query('SELECT nn.id, nn.node_name, COUNT(ns.id)::int AS visits FROM navigation_nodes nn LEFT JOIN navigation_sessions ns ON ns.destination = nn.id::text GROUP BY nn.id, nn.node_name ORDER BY visits DESC, nn.id LIMIT 8');
   return result.rows;
 }
 async function heatPoints(){
@@ -361,9 +361,9 @@ async function listSessions(filters = {}){
       COALESCE(am.id, dm.id) AS ar_marker_db_id,
       COALESCE(am.marker_name, dm.marker_name) AS ar_marker_name
     FROM navigation_sessions ns
-    LEFT JOIN navigation_nodes en ON en.id = ns.destination
+    LEFT JOIN navigation_nodes en ON en.id::text = ns.destination
     LEFT JOIN ar_markers am ON am.marker_name = ns.qr_id OR am.id::text = ns.qr_id
-    LEFT JOIN ar_markers dm ON dm.linked_node = ns.destination
+    LEFT JOIN ar_markers dm ON dm.linked_node::text = ns.destination
   `;
   const params = [];
   const where = [];

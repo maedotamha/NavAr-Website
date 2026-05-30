@@ -53,7 +53,21 @@ async function migrate() {
 
     // Ensure session_id column exists (for fresh DBs that skipped the rename path)
     `ALTER TABLE navigation_sessions ADD COLUMN IF NOT EXISTS session_id TEXT`,
-    `ALTER TABLE navigation_sessions ADD COLUMN IF NOT EXISTS destination INTEGER REFERENCES navigation_nodes(id) ON DELETE SET NULL`,
+    `ALTER TABLE navigation_sessions ADD COLUMN IF NOT EXISTS destination TEXT`,
+    `DO $$ DECLARE fk_name text;
+     BEGIN
+       FOR fk_name IN
+         SELECT con.conname
+         FROM pg_constraint con
+         JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = ANY(con.conkey)
+         WHERE con.conrelid = 'navigation_sessions'::regclass
+           AND con.contype = 'f'
+           AND att.attname = 'destination'
+       LOOP
+         EXECUTE format('ALTER TABLE navigation_sessions DROP CONSTRAINT %I', fk_name);
+       END LOOP;
+     END $$`,
+    `ALTER TABLE navigation_sessions ALTER COLUMN destination TYPE TEXT USING destination::text`,
     `CREATE UNIQUE INDEX IF NOT EXISTS navigation_sessions_session_id_idx ON navigation_sessions (session_id) WHERE session_id IS NOT NULL`,
 
     // ── feedback table ────────────────────────────────────────────────────
