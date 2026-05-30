@@ -41,20 +41,20 @@ async function createMarker(input){
 async function createSession(input){
   const result = await db.query(
     `INSERT INTO navigation_sessions
-       (session_scope, qr_id, destination, status, visited_node_ids, client_created_at, session_id)
+       (session_scope, qr_id, destination, session_status, visited_node_ids, client_created_at, session_id)
      VALUES ($1, $2, $3, $4, $5::jsonb, COALESCE($6::timestamptz, NOW()), $7)
      RETURNING *`,
     [
       input.session_scope || 'inside',
       input.qr_id || null,
       input.destination || input.end_node || null,
-      input.status || 'completed',
+      input.session_status || null,
       JSON.stringify(input.visited_node_ids || []),
       input.client_created_at || null,
       input.session_id || input.client_session_id || null
     ]
   );
-  await createSyncLog('mobile', 'session.create', 'navigation_session', String(result.rows[0].id), 'insert', { status: input.status || 'completed', qr_id: input.qr_id || null });
+  await createSyncLog('mobile', 'session.create', 'navigation_session', String(result.rows[0].id), 'insert', { session_status: input.session_status || null, qr_id: input.qr_id || null });
   return result.rows[0];
 }
 
@@ -333,7 +333,7 @@ async function updateSession(id, input){
      SET session_scope = $2,
          qr_id = COALESCE($3, qr_id),
          destination = COALESCE($4, destination),
-         status = $5,
+         session_status = COALESCE($5, session_status),
          visited_node_ids = $6::jsonb,
          client_created_at = COALESCE($7::timestamptz, client_created_at)
      WHERE id = $1
@@ -343,12 +343,12 @@ async function updateSession(id, input){
       input.session_scope || 'inside',
       input.qr_id || null,
       input.destination || input.end_node || null,
-      input.status || 'completed',
+      input.session_status || null,
       JSON.stringify(input.visited_node_ids || []),
       input.client_created_at || null
     ]
   );
-  if(result.rows[0]) await createSyncLog('mobile', 'session.update', 'navigation_session', String(id), 'update', { status: input.status || 'completed', qr_id: input.qr_id || null });
+  if(result.rows[0]) await createSyncLog('mobile', 'session.update', 'navigation_session', String(id), 'update', { session_status: input.session_status || null, qr_id: input.qr_id || null });
   return result.rows[0] || null;
 }
 
@@ -356,7 +356,7 @@ async function listSessions(filters = {}){
   let queryText = `
     SELECT
       ns.*,
-      COALESCE(ns.qr_id, dm.marker_name, CASE WHEN ns.destination IS NOT NULL THEN 'AR-' || ns.destination::text ELSE NULL END) AS ar_id,
+      COALESCE(ns.qr_id, dm.marker_name, CASE WHEN ns.destination IS NOT NULL THEN 'QR-' || ns.destination::text ELSE NULL END) AS qr_id,
       en.node_name AS destination_name,
       COALESCE(am.id, dm.id) AS ar_marker_db_id,
       COALESCE(am.marker_name, dm.marker_name) AS ar_marker_name
@@ -370,7 +370,7 @@ async function listSessions(filters = {}){
   if(filters.status === 'active'){
     where.push("ns.client_created_at >= NOW() - INTERVAL '15 minutes'");
   } else if(filters.status === 'failed'){
-    where.push("ns.status = 'canceled'");
+    where.push("ns.session_status = 'cancelled'");
   }
   if(filters.scope === 'inside' || filters.scope === 'outside'){
     params.push(filters.scope);
@@ -384,7 +384,7 @@ async function listSessions(filters = {}){
 
 async function listSyncs(){
   const result = await db.query(
-    "SELECT session_scope, MAX(client_created_at) AS last_sync_time, COUNT(*)::int AS session_count, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END)::int AS successful_count FROM navigation_sessions GROUP BY session_scope ORDER BY last_sync_time DESC"
+    "SELECT session_scope, MAX(client_created_at) AS last_sync_time, COUNT(*)::int AS session_count, SUM(CASE WHEN session_status = 'completed' THEN 1 ELSE 0 END)::int AS successful_count FROM navigation_sessions GROUP BY session_scope ORDER BY last_sync_time DESC"
   );
   return result.rows;
 }

@@ -244,21 +244,21 @@ async function main(){
   const markerForNode = nodeId => qrMarkerRows.rows.find(marker => marker.linked_node === nodeId)?.marker_name || `AR-${nodeId || 'UNKNOWN'}`;
 
   const sessionData = [
-    { scope: 'inside', start: bLobbyNode?.id, end: bResearchNode?.id, status: 'completed', session_id: 'inside-demo-001' },
-    { scope: 'inside', start: bLobbyNode?.id, end: cComputingNode?.id, status: 'completed', session_id: 'inside-demo-002' },
-    { scope: 'inside', start: fLobbyNode?.id, end: bResearchNode?.id, status: 'canceled', session_id: 'inside-demo-003' },
-    { scope: 'outside', start: cComputingNode?.id, end: fLobbyNode?.id, status: 'completed', session_id: 'outside-demo-001' },
-    { scope: 'outside', start: bLobbyNode?.id, end: fLobbyNode?.id, status: 'completed', session_id: 'outside-demo-002' },
-    { scope: 'outside', start: fLobbyNode?.id, end: cComputingNode?.id, status: 'canceled', session_id: 'outside-demo-003' }
+    { scope: 'inside', start: bLobbyNode?.id, end: bResearchNode?.id, session_status: 'completed', session_id: 'inside-demo-001' },
+    { scope: 'inside', start: bLobbyNode?.id, end: cComputingNode?.id, session_status: 'completed', session_id: 'inside-demo-002' },
+    { scope: 'inside', start: fLobbyNode?.id, end: bResearchNode?.id, session_status: 'cancelled', session_id: 'inside-demo-003' },
+    { scope: 'outside', start: cComputingNode?.id, end: fLobbyNode?.id, session_status: 'completed', session_id: 'outside-demo-001' },
+    { scope: 'outside', start: bLobbyNode?.id, end: fLobbyNode?.id, session_status: 'completed', session_id: 'outside-demo-002' },
+    { scope: 'outside', start: fLobbyNode?.id, end: cComputingNode?.id, session_status: 'cancelled', session_id: 'outside-demo-003' }
   ];
 
   const sessionIds = [];
   for (let s of sessionData) {
     if (!s.start || !s.end) continue;
     const res = await pool.query(
-      'INSERT INTO navigation_sessions (session_scope, qr_id, destination, status, visited_node_ids, session_id, client_created_at) ' +
+      'INSERT INTO navigation_sessions (session_scope, qr_id, destination, session_status, visited_node_ids, session_id, client_created_at) ' +
       'VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW() - INTERVAL \'3 hours\') RETURNING id',
-      [s.scope, markerForNode(s.start), s.end, s.status, JSON.stringify([String(s.start)]), s.session_id]
+      [s.scope, markerForNode(s.start), s.end, s.session_status, JSON.stringify([String(s.start)]), s.session_id]
     );
     sessionIds.push(res.rows[0].id);
   }

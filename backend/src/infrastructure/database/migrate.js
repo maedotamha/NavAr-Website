@@ -9,9 +9,25 @@ async function migrate() {
     // ── navigation_sessions — add missing columns ──────────────────────────
     `ALTER TABLE navigation_sessions ADD COLUMN IF NOT EXISTS session_scope TEXT NOT NULL DEFAULT 'inside'`,
     `ALTER TABLE navigation_sessions ADD COLUMN IF NOT EXISTS qr_id TEXT`,
+    `ALTER TABLE navigation_sessions ADD COLUMN IF NOT EXISTS session_status TEXT`,
     `ALTER TABLE navigation_sessions ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'completed'`,
     `ALTER TABLE navigation_sessions ADD COLUMN IF NOT EXISTS visited_node_ids JSONB NOT NULL DEFAULT '[]'`,
     `ALTER TABLE navigation_sessions ADD COLUMN IF NOT EXISTS client_created_at TIMESTAMPTZ DEFAULT NOW()`,
+    `ALTER TABLE navigation_sessions DROP CONSTRAINT IF EXISTS navigation_sessions_status_check`,
+    `ALTER TABLE navigation_sessions DROP CONSTRAINT IF EXISTS navigation_sessions_session_status_check`,
+    `UPDATE navigation_sessions
+     SET session_status = CASE
+       WHEN status IN ('cancelled','canceled','not_completed') THEN 'cancelled'
+       WHEN status = 'completed' THEN 'completed'
+       ELSE session_status
+     END
+     WHERE session_status IS NULL`,
+    `DO $$ BEGIN
+       ALTER TABLE navigation_sessions
+       ADD CONSTRAINT navigation_sessions_session_status_check
+       CHECK (session_status IS NULL OR session_status IN ('completed','cancelled'));
+     EXCEPTION WHEN duplicate_object THEN NULL;
+     END $$`,
 
     // ── navigation_sessions — rename columns ──────────────────────────────
     // client_session_id → session_id
@@ -141,7 +157,7 @@ async function migrate() {
       SELECT
         gs.day::date                                                                      AS day,
         COUNT(ns.id)::int                                                                 AS route_requests,
-        COUNT(CASE WHEN ns.status = 'completed' THEN 1 END)::int                         AS successful_routes
+        COUNT(CASE WHEN ns.session_status = 'completed' THEN 1 END)::int                 AS successful_routes
       FROM generate_series(
              (NOW() - INTERVAL '6 days')::date,
              NOW()::date,

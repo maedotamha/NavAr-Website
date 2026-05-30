@@ -83,7 +83,8 @@ export function useFetch(fetcher, deps = []) {
 export function Pill({ v }) {
   const map = {
     open: ['#fef9c3','#92400e'], resolved: ['#dcfce7','#15803d'], active: ['#dbeafe','#1d4ed8'],
-    successful: ['#dcfce7','#15803d'], failed: ['#fee2e2','#b91c1c'], inactive: ['#f1f5f9','#475569'],
+    successful: ['#dcfce7','#15803d'], completed: ['#dcfce7','#15803d'], 'in progress': ['#fef9c3','#92400e'],
+    failed: ['#fee2e2','#b91c1c'], cancelled: ['#fee2e2','#b91c1c'], inactive: ['#f1f5f9','#475569'],
     published: ['#dcfce7','#15803d'], hidden: ['#f1f5f9','#475569'], popular: ['#ede9fe','#6d5dfc'],
     lab: ['#dbeafe','#1d4ed8'], office: ['#ede9fe','#6d5dfc'], service: ['#f0fdf4','#15803d'],
     entrance: ['#ffedd5','#c2410c'], lobby: ['#fef9c3','#92400e'], corridor: ['#f1f5f9','#475569'],

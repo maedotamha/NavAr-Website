@@ -177,14 +177,14 @@ export function SessionsPanel({ scope = 'inside' }) {
   const floorData = dashboardData?.floorData || {};
 
   const total     = sessions.length;
-  const completed = sessions.filter(s => s.status === 'completed').length;
-  const canceled  = sessions.filter(s => s.status === 'canceled').length;
-  const started   = sessions.filter(s => s.status === 'started').length;
+  const completed = sessions.filter(s => s.session_status === 'completed').length;
+  const cancelled = sessions.filter(s => s.session_status === 'cancelled').length;
+  const active    = sessions.filter(s => !s.session_status).length;
   const kpis = [
     ['Total Sessions', total],
     ['Completed', completed],
-    ['In Progress', started],
-    ['Canceled', canceled],
+    ['In Progress', active],
+    ['Cancelled', cancelled],
     ['AR Anchors', floorData.anchors],
     ['Floor POIs', floorData.destinations],
     ['Completion', total > 0 ? `${Math.round((completed / total) * 100)}%` : null],
@@ -211,12 +211,12 @@ export function SessionsPanel({ scope = 'inside' }) {
         </p>
         {sessions.length === 0 ? <Empty /> : (
           <TTable
-            heads={['AR ID', 'Destination', 'Status', 'Visited Nodes', 'Session ID', 'Created']}
+            heads={['QR ID', 'Destination', 'Status', 'Visited Nodes', 'Session ID', 'Created']}
             rows={sessions}
             renderRow={s => (<>
-              <TD mono><b>{s.ar_id || s.qr_id || s.ar_marker_name || '–'}</b></TD>
+              <TD mono><b>{s.qr_id || s.ar_marker_name || '-'}</b></TD>
               <TD muted>{(s.destination_name || '–').slice(0, 32)}</TD>
-              <TD><Pill v={s.status === 'completed' ? 'Successful' : s.status === 'canceled' ? 'Failed' : s.status || '–'} /></TD>
+              <TD><Pill v={s.session_status === 'completed' ? 'Successful' : s.session_status === 'cancelled' ? 'Cancelled' : 'In Progress'} /></TD>
               <TD center>{Array.isArray(s.visited_node_ids) ? s.visited_node_ids.length : 0}</TD>
               <TD mono muted>{s.session_id || `DB-${s.id}`}</TD>
               <TD muted>{s.client_created_at ? new Date(s.client_created_at).toLocaleString() : '–'}</TD>
