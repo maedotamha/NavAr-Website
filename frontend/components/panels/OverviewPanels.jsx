@@ -6,6 +6,10 @@ import { tok, useFetch, Pill, PHead, Empty, Spin, Err, Btn, Input, Sel, FGrid, T
 export function OverviewPanel() {
   const { data, loading, error, reload } = useFetch(() => api.getDashboard(tok()));
   const { data: outdoorData, loading: outdoorLoading } = useFetch(() => api.getOutdoorAnalytics(tok()));
+  useEffect(() => {
+    const timer = setInterval(reload, 10000);
+    return () => clearInterval(timer);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (loading) return <article className="actualPanel"><Spin /></article>;
   if (error) return <article className="actualPanel"><Err msg={error} reload={reload} /></article>;
   const { kpis = {}, floorData = {}, navigationUsage = [], popularNodes = [], systemStatus = [] } = data || {};
@@ -176,6 +180,11 @@ export function SessionsPanel({ scope = 'inside' }) {
   const sessions = data?.sessions || [];
   const floorData = dashboardData?.floorData || {};
 
+  useEffect(() => {
+    const timer = setInterval(reload, 5000);
+    return () => clearInterval(timer);
+  }, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const total     = sessions.length;
   const completed = sessions.filter(s => s.session_status === 'completed').length;
   const cancelled = sessions.filter(s => s.session_status === 'cancelled').length;
@@ -205,7 +214,11 @@ export function SessionsPanel({ scope = 'inside' }) {
       </div>
 
       <article className="actualPanel">
-        <PHead title="Inside Navigation Sessions" count={sessions.length} action={<span style={{ color: '#64748b', fontSize: 12 }}>INSIDE</span>} />
+        <PHead
+          title="Inside Navigation Sessions"
+          count={sessions.length}
+          action={<Btn variant="secondary" onClick={reload}>Refresh</Btn>}
+        />
         <p style={{ margin: '-8px 20px 16px', color: '#64748b', fontSize: 13 }}>
           Indoor movement from QR anchors through rooms, floors, facilities, and POIs.
         </p>
