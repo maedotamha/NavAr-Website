@@ -16,15 +16,7 @@ function normalizeVisitedNodeIds(input){
 }
 
 function sessionAnchorId(input){
-  return input.qr_id || input.qrId || input.qrID || input.ar_id || input.arId || input.arID || null;
-}
-
-function clientSessionId(input){
-  return input.session_id || input.sessionId || input.client_session_id || input.clientSessionId || null;
-}
-
-function destinationNodeId(input){
-  return input.destination_node_id || input.destinationNodeId || input.destinationNodeID || input.destination || input.end_node || input.endNode || null;
+  return input.qr_id || input.qrId || input.ar_id || input.arId || null;
 }
 
 // Return only the fields the mobile needs
@@ -62,12 +54,12 @@ function createMobileSyncService(repo){
       const items = sessionArray(input);
       const saved = [];
       for(const item of items){
-        const clientId = clientSessionId(item);
+        const clientId = item.session_id || item.client_session_id || null;
         const row = await (clientId
           ? repo.upsertSessionByClientId(clientId, {
               session_scope:     'inside',
               qr_id:             text(sessionAnchorId(item), 'qr_id', 120),
-              destination:       nullableInteger(destinationNodeId(item), 'destination_node_id'),
+              destination:       nullableInteger(item.destination_node_id || item.destinationNodeId || item.end_node, 'destination_node_id'),
               session_status:    null,
               visited_node_ids:  [],
               client_created_at: item.started_at || item.client_created_at || null,
@@ -76,7 +68,7 @@ function createMobileSyncService(repo){
           : repo.createSession({
               session_scope:     'inside',
               qr_id:             text(sessionAnchorId(item), 'qr_id', 120),
-              destination:       nullableInteger(destinationNodeId(item), 'destination_node_id'),
+              destination:       nullableInteger(item.destination_node_id || item.destinationNodeId || item.end_node, 'destination_node_id'),
               session_status:    null,
               visited_node_ids:  [],
               client_created_at: item.started_at || item.client_created_at || null
@@ -93,11 +85,11 @@ function createMobileSyncService(repo){
       const items = sessionArray(input);
       const saved = [];
       for(const item of items){
-        const clientId = clientSessionId(item);
+        const clientId = item.session_id || item.client_session_id || null;
         const update = {
           session_scope:     normalizeSessionScope(item),
           qr_id:             sessionAnchorId(item),
-          destination:       nullableInteger(destinationNodeId(item), 'destination_node_id'),
+          destination:       nullableInteger(item.destination_node_id || item.destinationNodeId || item.end_node, 'destination_node_id'),
           session_status:    'completed',
           visited_node_ids:  normalizeVisitedNodeIds(item),
           client_created_at: item.ended_at || item.client_created_at || null,
@@ -118,13 +110,13 @@ function createMobileSyncService(repo){
       const items = sessionArray(input);
       const saved = [];
       for(const item of items){
-        const clientId = clientSessionId(item);
+        const clientId = item.session_id || item.client_session_id || null;
         const update = {
           session_scope:     normalizeSessionScope(item),
           qr_id:             sessionAnchorId(item),
           session_status:    'cancelled',
           visited_node_ids:  normalizeVisitedNodeIds(item),
-          client_created_at: item.cancelled_at || item.canceled_at || item.client_created_at || null,
+          client_created_at: item.cancelled_at || item.client_created_at || null,
           session_id:        clientId
         };
         const row = await (clientId
@@ -142,7 +134,7 @@ function createMobileSyncService(repo){
       const items = sessionArray(input);
       const saved = [];
       for(const item of items){
-        const clientId = clientSessionId(item);
+        const clientId = item.session_id || item.client_session_id || null;
         const statusRaw = String(item.session_status || item.status || '').toLowerCase();
         const sessionStatus = statusRaw.includes('cancel') || statusRaw.includes('fail') ? 'cancelled'
                             : statusRaw.includes('complete') || statusRaw.includes('end') ? 'completed'
@@ -150,7 +142,7 @@ function createMobileSyncService(repo){
         const normalized = {
           session_scope:     normalizeSessionScope(item),
           qr_id:             sessionAnchorId(item),
-          destination:       nullableInteger(destinationNodeId(item), 'destination_node_id'),
+          destination:       nullableInteger(item.destination_node_id || item.end_node, 'destination_node_id'),
           session_status:    sessionStatus,
           visited_node_ids:  normalizeVisitedNodeIds(item),
           client_created_at: item.started_at || item.ended_at || item.client_created_at || null,
