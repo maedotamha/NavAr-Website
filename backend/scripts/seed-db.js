@@ -240,29 +240,30 @@ async function main(){
   const bResearchNode = nodeMap.find(n => n.node_name === 'Block B - Director of Research Center Office');
   const cComputingNode = nodeMap.find(n => n.node_name === 'Block C - HPC & Interior Design Lab Ground');
   const fLobbyNode = nodeMap.find(n => n.node_name === 'Block F - Main Lobby Node');
+  const qrMarkerRows = await pool.query('SELECT id, marker_name, linked_node FROM ar_markers ORDER BY id');
+  const markerForNode = nodeId => qrMarkerRows.rows.find(marker => marker.linked_node === nodeId)?.marker_name || `AR-${nodeId || 'UNKNOWN'}`;
 
   const sessionData = [
-    { scope: 'inside', device_id: 'device-mac-01', start: bLobbyNode?.id, end: bResearchNode?.id, seconds: 48, success: true, recovery: 0 },
-    { scope: 'inside', device_id: 'device-mac-02', start: bLobbyNode?.id, end: cComputingNode?.id, seconds: 124, success: true, recovery: 1 },
-    { scope: 'inside', device_id: 'device-mac-03', start: fLobbyNode?.id, end: bResearchNode?.id, seconds: 286, success: false, recovery: 3 },
-    { scope: 'outside', device_id: 'device-mac-01', start: cComputingNode?.id, end: fLobbyNode?.id, seconds: 92, success: true, recovery: 0 },
-    { scope: 'outside', device_id: 'device-mac-04', start: bLobbyNode?.id, end: fLobbyNode?.id, seconds: 180, success: true, recovery: 2 },
-    { scope: 'outside', device_id: 'device-mac-05', start: fLobbyNode?.id, end: cComputingNode?.id, seconds: 210, success: false, recovery: 0 }
+    { scope: 'inside', start: bLobbyNode?.id, end: bResearchNode?.id, status: 'completed', session_id: 'inside-demo-001' },
+    { scope: 'inside', start: bLobbyNode?.id, end: cComputingNode?.id, status: 'completed', session_id: 'inside-demo-002' },
+    { scope: 'inside', start: fLobbyNode?.id, end: bResearchNode?.id, status: 'canceled', session_id: 'inside-demo-003' },
+    { scope: 'outside', start: cComputingNode?.id, end: fLobbyNode?.id, status: 'completed', session_id: 'outside-demo-001' },
+    { scope: 'outside', start: bLobbyNode?.id, end: fLobbyNode?.id, status: 'completed', session_id: 'outside-demo-002' },
+    { scope: 'outside', start: fLobbyNode?.id, end: cComputingNode?.id, status: 'canceled', session_id: 'outside-demo-003' }
   ];
 
   const sessionIds = [];
   for (let s of sessionData) {
     if (!s.start || !s.end) continue;
     const res = await pool.query(
-      'INSERT INTO navigation_sessions (session_scope, device_id, start_node, end_node, duration_seconds, success, recovery_count, client_created_at, created_at) ' +
-      'VALUES ($1, $2, $3, $4, $5, $6, $7, NOW() - INTERVAL \'3 hours\', NOW() - INTERVAL \'3 hours\') RETURNING id',
-      [s.scope, s.device_id, s.start, s.end, s.seconds, s.success, s.recovery]
+      'INSERT INTO navigation_sessions (session_scope, qr_id, destination, status, visited_node_ids, session_id, client_created_at) ' +
+      'VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW() - INTERVAL \'3 hours\') RETURNING id',
+      [s.scope, markerForNode(s.start), s.end, s.status, JSON.stringify([String(s.start)]), s.session_id]
     );
     sessionIds.push(res.rows[0].id);
   }
 
   console.log('Seeding QR scans...');
-  const qrMarkerRows = await pool.query('SELECT id, marker_name, linked_node FROM ar_markers');
   for (let marker of qrMarkerRows.rows) {
     await pool.query(
       'INSERT INTO qr_scans (qr_code, device_id, scan_time, resolved_node_id) VALUES ($1, $2, NOW() - INTERVAL \'1 hour\', $3)',
@@ -303,9 +304,9 @@ async function main(){
   );
 
   console.log('Seeding access logs...');
-  await pool.query("INSERT INTO access_logs (actor, action, target) VALUES ('admin@navar.local', 'Database Seed Loaded', 'System Configuration')");
-  await pool.query("INSERT INTO access_logs (actor, action, target) VALUES ('facility@navar.local', 'Viewed AR Marker Inventory', 'QR Anchors module')");
-  await pool.query("INSERT INTO access_logs (actor, action, target) VALUES ('admin@navar.local', 'Assigned Role facility_manager', 'facility@navar.local')");
+  await pool.query("INSERT INTO access_logs (actor, action, target, role) VALUES ('admin@navar.local', 'Database Seed Loaded', 'System Configuration', 'admin')");
+  await pool.query("INSERT INTO access_logs (actor, action, target, role) VALUES ('facility@navar.local', 'Viewed AR Marker Inventory', 'QR Anchors module', 'facility_manager')");
+  await pool.query("INSERT INTO access_logs (actor, action, target, role) VALUES ('admin@navar.local', 'Assigned Role facility_manager', 'facility@navar.local', 'admin')");
 
   console.log('Database seeding successfully finished.');
 }

@@ -7,7 +7,6 @@ import { tok, useFetch, Btn, MsgBox, Spin, Err } from './shared';
 const SETTINGS_CONFIG = {
   organization: {
     title: 'Organization Settings',
-    icon: '🏫',
     description: 'Basic identity shown across the admin panel and in the mobile app.',
     sections: [
       {
@@ -48,7 +47,6 @@ const SETTINGS_CONFIG = {
   },
   sessions: {
     title: 'Session Rules',
-    icon: '⏱',
     description: 'Controls how navigation sessions are tracked, synced, and stored on the server.',
     sections: [
       {
@@ -95,7 +93,6 @@ const SETTINGS_CONFIG = {
   },
   security: {
     title: 'Security & Authentication',
-    icon: '🔒',
     description: 'Manages admin token lifetimes, password requirements, and API access rules.',
     sections: [
       {
@@ -133,9 +130,10 @@ const SETTINGS_CONFIG = {
 };
 
 export function SettingsPanel({ category }) {
-  const cfg = SETTINGS_CONFIG[category] || { title: 'Settings', icon: '⚙️', description: '', sections: [] };
+  const cfg = SETTINGS_CONFIG[category] || { title: 'Settings', description: '', sections: [] };
   const { data, loading, error, reload } = useFetch(() => api.getSettingsByCategory(tok(), category), [category]);
   const [form, setForm] = useState({});
+  const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [msg, setMsg] = useState('');
@@ -149,23 +147,29 @@ export function SettingsPanel({ category }) {
     try {
       await api.updateSettingsByCategory(tok(), category, form);
       setSaved(true);
+      setEditing(false);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) { setMsg('Error: ' + err.message); }
     setSaving(false);
+  }
+
+  function toggleEdit() {
+    if (editing && data?.settings) setForm(data.settings);
+    setEditing(value => !value);
   }
 
   return (
     <article className="actualPanel">
       <div className="actualPanelHead">
         <div>
-          <h3 style={{ margin: 0, fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 20 }}>{cfg.icon}</span>
-            {cfg.title}
-          </h3>
+          <h3 style={{ margin: 0, fontSize: 16 }}>{cfg.title}</h3>
           {cfg.description && (
             <p style={{ margin: '5px 0 0', color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>{cfg.description}</p>
           )}
         </div>
+        <Btn variant={editing ? 'secondary' : 'primary'} onClick={toggleEdit}>
+          {editing ? 'Cancel Edit' : 'Edit'}
+        </Btn>
       </div>
 
       {loading ? <Spin /> : error ? <Err msg={error} reload={reload} /> : (
@@ -194,6 +198,7 @@ export function SettingsPanel({ category }) {
                       type={f.type || 'text'}
                       value={form[f.key] ?? ''}
                       placeholder={f.placeholder || ''}
+                      disabled={!editing || saving}
                       onChange={e => setForm(prev => ({
                         ...prev,
                         [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value
@@ -201,7 +206,7 @@ export function SettingsPanel({ category }) {
                       style={{
                         height: 40, border: '1px solid #cbd5e1', borderRadius: 8,
                         padding: '0 12px', fontFamily: 'inherit', fontSize: 13,
-                        color: '#0f172a', background: '#fff',
+                        color: '#0f172a', background: editing ? '#fff' : '#f8fafc',
                         transition: 'border-color .15s',
                       }}
                     />
@@ -225,6 +230,7 @@ export function SettingsPanel({ category }) {
                 <label style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>Allowed CORS Origins</label>
                 <textarea
                   value={form.allowed_origins.join('\n')}
+                  disabled={!editing || saving}
                   onChange={e => setForm(prev => ({
                     ...prev,
                     allowed_origins: e.target.value.split('\n').map(s => s.trim()).filter(Boolean)
@@ -233,6 +239,7 @@ export function SettingsPanel({ category }) {
                     width: '100%', minHeight: 96, border: '1px solid #cbd5e1', borderRadius: 8,
                     padding: '10px 12px', fontFamily: 'monospace', fontSize: 12,
                     resize: 'vertical', boxSizing: 'border-box', color: '#0f172a',
+                    background: editing ? '#fff' : '#f8fafc',
                   }}
                 />
                 <small style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.55 }}>
@@ -244,10 +251,10 @@ export function SettingsPanel({ category }) {
 
           {/* Save bar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, borderTop: '1px solid #f1f5f9', paddingTop: 20 }}>
-            <Btn type="submit" size="md" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</Btn>
+            <Btn type="submit" size="md" disabled={!editing || saving}>{saving ? 'Saving...' : 'Save Changes'}</Btn>
             {saved && (
               <span style={{ color: '#16a34a', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
-                ✓ Saved successfully
+                Saved successfully
               </span>
             )}
             {msg && <span style={{ color: '#dc2626', fontSize: 13, fontWeight: 700 }}>{msg}</span>}

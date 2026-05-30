@@ -1,11 +1,21 @@
 const { compactObject, dedupeFromParts } = require('./externalMergeService');
 
-function asArray(data) {
+function asArray(data, recordType) {
   return Array.isArray(data) ? data : (data ? [data] : []);
 }
 
 function normalizeOutdoorPayload(recordType, payload) {
-  return asArray(payload).map((item, index) => {
+  const keyedArrays = {
+    heatmap_point: ['heatmap', 'points'],
+    destination: ['destinations', 'results'],
+    route: ['routes'],
+    navigation_session: ['sessions', 'recent'],
+    search_term: ['searches', 'recentSearches', 'terms'],
+    map_node: ['nodes'],
+    map_edge: ['edges']
+  };
+  const collection = keyedArrays[recordType]?.reduce((found, key) => found || payload?.[key], null) || payload;
+  return asArray(collection, recordType).map((item, index) => {
     if (recordType === 'heatmap_point' && Array.isArray(item)) {
       const [lat, lng, weight] = item;
       return {

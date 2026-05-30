@@ -88,8 +88,8 @@ function createAccessControlService(repo) {
     async listAccessLogs() {
       return repo.listAccessLogs();
     },
-    async createAccessLog(actor, action, target) {
-      return repo.createAccessLog(actor, action, target);
+    async createAccessLog(actor, action, target, role) {
+      return repo.createAccessLog(actor, action, target, role);
     }
   };
 }

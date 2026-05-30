@@ -31,8 +31,7 @@ const MENU = [
     sessionScope: 'both',
     permissions: ['qr_anchors.read'],
     children: [
-      { key: 'qr_codes.registry', label: 'QR Registry', path: '/dashboard/qr-codes', sessionScope: 'outside-session', permissions: ['qr_anchors.read'] },
-      { key: 'qr_codes.scans', label: 'Scan History', path: '/dashboard/qr-codes/scans', sessionScope: 'both', permissions: ['qr_anchors.read'] }
+      { key: 'qr_codes.registry', label: 'QR Registry', path: '/dashboard/qr-codes', sessionScope: 'outside-session', permissions: ['qr_anchors.read'] }
     ]
   },
   {
@@ -54,8 +53,7 @@ const MENU = [
     sessionScope: 'both',
     permissions: ['facilities.read'],
     children: [
-      { key: 'locations.blocks', label: 'Blocks & Floors', path: '/dashboard/locations/blocks', sessionScope: 'outside-session', permissions: ['facilities.read'] },
-      { key: 'locations.rooms', label: 'Rooms & Facilities', path: '/dashboard/locations/rooms', sessionScope: 'both', permissions: ['facilities.read'] }
+      { key: 'locations.blocks', label: 'Blocks & Floors', path: '/dashboard/locations/blocks', sessionScope: 'outside-session', permissions: ['facilities.read'] }
     ]
   },
   {
@@ -124,7 +122,7 @@ function filterItem(item, permissions) {
 
 function createSidebarService() {
   return {
-    getSidebar(authUser) {
+    async getSidebar(authUser) {
       const permissions = authUser.permissions || [];
       const modules = MENU.map(item => filterItem(item, permissions)).filter(Boolean);
       return {

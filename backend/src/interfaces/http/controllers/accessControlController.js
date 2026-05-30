@@ -13,7 +13,15 @@ function createAccessControlController(service) {
     createModule: asyncHandler(async (req, res) => res.status(201).json(await service.createModule(req.body))),
     updateModule: asyncHandler(async (req, res) => res.json(await service.updateModule(req.params.id, req.body))),
     deleteModule: asyncHandler(async (req, res) => res.json(await service.deleteModule(req.params.id))),
-    listAccessLogs: asyncHandler(async (_req, res) => res.json({ logs: await service.listAccessLogs() }))
+    listAccessLogs: asyncHandler(async (_req, res) => res.json({ logs: await service.listAccessLogs() })),
+    createAccessLog: asyncHandler(async (req, res) => res.status(201).json({
+      log: await service.createAccessLog(
+        req.auth?.email || `admin:${req.auth?.sub}`,
+        req.body.action || 'Visited Page',
+        req.body.target || 'Dashboard',
+        req.auth?.role || null
+      )
+    }))
   };
 }
 

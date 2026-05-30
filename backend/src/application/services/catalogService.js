@@ -1,9 +1,17 @@
 const { integer, number, text } = require('../../domain/validators');
+const { getFloorNodes, getFloorPois } = require('./floorDataService');
 function createCatalogService(repo){
   return {
     listBuildings: () => repo.listBuildings(),
     createBuilding: input => repo.createBuilding({ name:text(input.name,'name'), description:String(input.description || ''), longitude:number(input.longitude,'longitude'), latitude:number(input.latitude,'latitude') }),
-    listNodes: () => repo.listNodes(),
+    updateBuildingStatus: (id, input) => repo.updateBuildingStatus(integer(Number(id), 'id'), String(input.status || '').toLowerCase() === 'inactive' ? 'inactive' : 'active'),
+    async listNodes(){
+      const nodes = await repo.listNodes();
+      return [...nodes, ...getFloorNodes()];
+    },
+    async listPois(){
+      return getFloorPois();
+    },
     createNode: input => repo.createNode({ 
       node_name:text(input.node_name,'node_name'), 
       longitude:number(input.longitude,'longitude'), 

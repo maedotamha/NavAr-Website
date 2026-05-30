@@ -1,11 +1,18 @@
 const db = require('../database/postgres');
 async function listBuildings(){
-  const result = await db.query('SELECT id, name, description, ' + db.pointSelect() + ' FROM buildings ORDER BY id');
+  const result = await db.query('SELECT id, name, description, COALESCE(status, \'active\') AS status, ' + db.pointSelect() + ' FROM buildings ORDER BY id');
   return result.rows;
 }
 async function createBuilding(input){
   const result = await db.query('INSERT INTO buildings (name, description, location) VALUES ($1, $2, ' + db.pointValue('$3','$4') + ') RETURNING id, name, description, ' + db.pointSelect(), [input.name, input.description || '', input.longitude, input.latitude]);
   return result.rows[0];
+}
+async function updateBuildingStatus(id, status){
+  const result = await db.query(
+    'UPDATE buildings SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING id, name, description, status, ' + db.pointSelect(),
+    [id, status]
+  );
+  return result.rows[0] || null;
 }
 async function listNodes(){
   const result = await db.query('SELECT id, node_name, floor_label, node_type, is_published, is_staff_only, ' + db.pointSelect() + ' FROM navigation_nodes ORDER BY id');
@@ -322,15 +329,42 @@ function titleCase(value){
 
 async function updateSession(id, input){
   const result = await db.query(
-    'UPDATE navigation_sessions SET session_scope = $2, qr_id = $3, destination = $4, status = $5, visited_node_ids = $6::jsonb WHERE id = $1 RETURNING *',
-    [id, input.session_scope || 'inside', input.qr_id || null, input.destination || input.end_node || null, input.status || 'completed', JSON.stringify(input.visited_node_ids || [])]
+    `UPDATE navigation_sessions
+     SET session_scope = $2,
+         qr_id = COALESCE($3, qr_id),
+         destination = COALESCE($4, destination),
+         status = $5,
+         visited_node_ids = $6::jsonb,
+         client_created_at = COALESCE($7::timestamptz, client_created_at)
+     WHERE id = $1
+     RETURNING *`,
+    [
+      id,
+      input.session_scope || 'inside',
+      input.qr_id || null,
+      input.destination || input.end_node || null,
+      input.status || 'completed',
+      JSON.stringify(input.visited_node_ids || []),
+      input.client_created_at || null
+    ]
   );
   if(result.rows[0]) await createSyncLog('mobile', 'session.update', 'navigation_session', String(id), 'update', { status: input.status || 'completed', qr_id: input.qr_id || null });
   return result.rows[0] || null;
 }
 
 async function listSessions(filters = {}){
-  let queryText = 'SELECT ns.*, en.node_name AS destination_name FROM navigation_sessions ns LEFT JOIN navigation_nodes en ON en.id = ns.destination';
+  let queryText = `
+    SELECT
+      ns.*,
+      COALESCE(ns.qr_id, dm.marker_name, CASE WHEN ns.destination IS NOT NULL THEN 'AR-' || ns.destination::text ELSE NULL END) AS ar_id,
+      en.node_name AS destination_name,
+      COALESCE(am.id, dm.id) AS ar_marker_db_id,
+      COALESCE(am.marker_name, dm.marker_name) AS ar_marker_name
+    FROM navigation_sessions ns
+    LEFT JOIN navigation_nodes en ON en.id = ns.destination
+    LEFT JOIN ar_markers am ON am.marker_name = ns.qr_id OR am.id::text = ns.qr_id
+    LEFT JOIN ar_markers dm ON dm.linked_node = ns.destination
+  `;
   const params = [];
   const where = [];
   if(filters.status === 'active'){
@@ -414,10 +448,10 @@ async function listAccessLogs(){
   return result.rows;
 }
 
-async function createAccessLog(actor, action, target){
+async function createAccessLog(actor, action, target, role){
   const result = await db.query(
-    'INSERT INTO access_logs (actor, action, target) VALUES ($1, $2, $3) RETURNING *',
-    [actor, action, target]
+    'INSERT INTO access_logs (actor, action, target, role) VALUES ($1, $2, $3, $4) RETURNING *',
+    [actor, action, target, role || null]
   );
   return result.rows[0];
 }
@@ -520,6 +554,18 @@ async function mergeSourceRecords(records){
   return summary;
 }
 
+async function listSourceRecords(recordType, limit = 200){
+  const result = await db.query(
+    `SELECT *
+     FROM source_records
+     WHERE source = 'outdoor' AND record_type = $1
+     ORDER BY last_seen_at DESC, id DESC
+     LIMIT $2`,
+    [recordType, limit]
+  );
+  return result.rows;
+}
+
 async function createSyncLog(source, operation, recordType, dedupeKey, action, details = {}){
   const result = await db.query(
     'INSERT INTO sync_logs (source, operation, record_type, dedupe_key, action, details_json) VALUES ($1, $2, $3, $4, $5, $6::jsonb) RETURNING *',
@@ -529,7 +575,7 @@ async function createSyncLog(source, operation, recordType, dedupeKey, action, d
 }
 
 module.exports = {
-  listBuildings, createBuilding, listNodes, createNode, listRoutes, createRoute, listMarkers, createMarker,
+  listBuildings, createBuilding, updateBuildingStatus, listNodes, createNode, listRoutes, createRoute, listMarkers, createMarker,
   createSession, updateSession, upsertSessionByClientId, createSessions, nearestNode, dashboardCounts, usageSeries, popularNodes, heatPoints, 
   findAdminByEmail, findAdminById, updateAdminLastLogin, getPermissionsForAdmin, getAccessControlOverview, 
   createRole, updateRole, deleteRole, assignUserRole, createAdminUser, updateAdminUser, deleteAdminUser, 
@@ -537,5 +583,5 @@ module.exports = {
   listSessions, listSyncs, listQrScans, listPoiCategories, createPoiCategory, patchPoiVisibility, 
   getAccessibilityOverview, listAccessLogs, createAccessLog, createFeedback, listFeedback, 
   updateFeedbackStatus, getSettings, getSettingsByCategory, updateSettingsByCategory,
-  mergeSourceRecord, mergeSourceRecords, createSyncLog
+  mergeSourceRecord, mergeSourceRecords, listSourceRecords, createSyncLog
 };

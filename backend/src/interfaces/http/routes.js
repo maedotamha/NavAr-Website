@@ -8,7 +8,9 @@ function createRoutes(controllers){
   router.get('/admin/sidebar', requireAdmin, sidebarController.getSidebar);
   router.get('/buildings', requirePermission('facilities.read'), catalogController.listBuildings);
   router.post('/buildings', requirePermission('facilities.create'), catalogController.createBuilding);
+  router.patch('/buildings/:id/status', requirePermission('facilities.status'), catalogController.updateBuildingStatus);
   router.get('/navigation-nodes', requirePermission('maps.read'), catalogController.listNodes);
+  router.get('/points-of-interest', requirePermission('facilities.read'), catalogController.listPois);
   router.post('/navigation-nodes', requirePermission('maps.create'), catalogController.createNode);
   router.get('/routes', requirePermission('routes.read'), catalogController.listRoutes);
   router.post('/routes', requirePermission('routes.create'), catalogController.createRoute);
@@ -29,6 +31,7 @@ function createRoutes(controllers){
   router.put('/access-control/modules/:id', requirePermission('access_control.update'), accessControlController.updateModule);
   router.delete('/access-control/modules/:id', requirePermission('access_control.delete'), accessControlController.deleteModule);
   router.get('/access-control/logs', requirePermission('access_control.read'), accessControlController.listAccessLogs);
+  router.post('/access-control/logs', requireAdmin, accessControlController.createAccessLog);
 
   router.get('/mobile/navigation-sessions', requirePermission('dashboard.read'), mobileController.listSessions);
   router.get('/mobile/sync', requirePermission('dashboard.read'), mobileController.listSyncs);

@@ -3,7 +3,9 @@ function createCatalogController(service){
   return {
     listBuildings: asyncHandler(async (_req,res)=>res.json({ buildings: await service.listBuildings() })),
     createBuilding: asyncHandler(async (req,res)=>res.status(201).json({ building: await service.createBuilding(req.body) })),
+    updateBuildingStatus: asyncHandler(async (req,res)=>res.json({ building: await service.updateBuildingStatus(req.params.id, req.body) })),
     listNodes: asyncHandler(async (_req,res)=>res.json({ nodes: await service.listNodes() })),
+    listPois: asyncHandler(async (_req,res)=>res.json({ pois: await service.listPois() })),
     createNode: asyncHandler(async (req,res)=>res.status(201).json({ node: await service.createNode(req.body) })),
     listRoutes: asyncHandler(async (_req,res)=>res.json({ routes: await service.listRoutes() })),
     createRoute: asyncHandler(async (req,res)=>res.status(201).json({ route: await service.createRoute(req.body) })),

@@ -1,9 +1,13 @@
+const { getFloorDataSummary } = require('./floorDataService');
+
 function createDashboardService(repo){
   return {
     async getDashboard(){
       const [kpis, navigationUsage, popularNodes, heatPoints] = await Promise.all([repo.dashboardCounts(), repo.usageSeries(), repo.popularNodes(), repo.heatPoints()]);
+      const floorData = getFloorDataSummary();
       return {
-        kpis,
+        kpis: { ...kpis, floor_anchors: floorData.anchors, floor_pois: floorData.destinations, floor_nodes: floorData.nodes },
+        floorData,
         navigationUsage,
         popularNodes,
         heatPoints,

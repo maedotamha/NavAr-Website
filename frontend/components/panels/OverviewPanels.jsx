@@ -8,11 +8,11 @@ export function OverviewPanel() {
   const { data: outdoorData, loading: outdoorLoading } = useFetch(() => api.getOutdoorAnalytics(tok()));
   if (loading) return <article className="actualPanel"><Spin /></article>;
   if (error) return <article className="actualPanel"><Err msg={error} reload={reload} /></article>;
-  const { kpis = {}, navigationUsage = [], popularNodes = [], systemStatus = [] } = data || {};
+  const { kpis = {}, floorData = {}, navigationUsage = [], popularNodes = [], systemStatus = [] } = data || {};
   const outdoorStats = outdoorData?.stats || {};
   const outdoorRecent = Array.isArray(outdoorData?.recent) ? outdoorData.recent : [];
   const outdoorSearches = Array.isArray(outdoorData?.searches) ? outdoorData.searches : [];
-  const kpiDefs = [['Buildings', kpis.buildings, '#3b82f6', '#dbeafe'], ['Nodes', kpis.nodes, '#6d5dfc', '#ede9fe'], ['Routes', kpis.routes, '#22c55e', '#dcfce7'], ['QR Markers', kpis.markers, '#f59e0b', '#ffedd5'], ['Sessions', kpis.sessions, '#ef4444', '#fee2e2']];
+  const kpiDefs = [['Buildings', kpis.buildings, '#3b82f6', '#dbeafe'], ['Nodes', kpis.nodes, '#6d5dfc', '#ede9fe'], ['Floor Nodes', floorData.nodes, '#0f766e', '#ccfbf1'], ['Floor POIs', floorData.destinations, '#be123c', '#ffe4e6'], ['AR Anchors', floorData.anchors || kpis.markers, '#f59e0b', '#ffedd5'], ['Sessions', kpis.sessions, '#ef4444', '#fee2e2']];
   const outdoorKpis = [
     ['Outdoor Sessions', outdoorStats.total],
     ['Completed', outdoorStats.completed],
@@ -172,7 +172,9 @@ export function HeatMapPanel() {
 export function SessionsPanel({ scope = 'inside' }) {
   if (scope !== 'inside') return <OutdoorNavigationPanel />;
   const { data, loading, error, reload } = useFetch(() => api.getSessions(tok(), 'inside'), [scope]);
+  const { data: dashboardData } = useFetch(() => api.getDashboard(tok()));
   const sessions = data?.sessions || [];
+  const floorData = dashboardData?.floorData || {};
 
   const total     = sessions.length;
   const completed = sessions.filter(s => s.status === 'completed').length;
@@ -183,6 +185,8 @@ export function SessionsPanel({ scope = 'inside' }) {
     ['Completed', completed],
     ['In Progress', started],
     ['Canceled', canceled],
+    ['AR Anchors', floorData.anchors],
+    ['Floor POIs', floorData.destinations],
     ['Completion', total > 0 ? `${Math.round((completed / total) * 100)}%` : null],
   ];
 
@@ -207,14 +211,14 @@ export function SessionsPanel({ scope = 'inside' }) {
         </p>
         {sessions.length === 0 ? <Empty /> : (
           <TTable
-            heads={['QR ID', 'Destination', 'Status', 'Visited Nodes', 'Session ID', 'Created']}
+            heads={['AR ID', 'Destination', 'Status', 'Visited Nodes', 'Session ID', 'Created']}
             rows={sessions}
             renderRow={s => (<>
-              <TD><b>{s.qr_id || '–'}</b></TD>
+              <TD mono><b>{s.ar_id || s.qr_id || s.ar_marker_name || '–'}</b></TD>
               <TD muted>{(s.destination_name || '–').slice(0, 32)}</TD>
               <TD><Pill v={s.status === 'completed' ? 'Successful' : s.status === 'canceled' ? 'Failed' : s.status || '–'} /></TD>
               <TD center>{Array.isArray(s.visited_node_ids) ? s.visited_node_ids.length : 0}</TD>
-              <TD muted>{s.session_id ? s.session_id.slice(0, 8) + '…' : '–'}</TD>
+              <TD mono muted>{s.session_id || `DB-${s.id}`}</TD>
               <TD muted>{s.client_created_at ? new Date(s.client_created_at).toLocaleString() : '–'}</TD>
             </>)}
           />
