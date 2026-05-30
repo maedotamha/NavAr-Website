@@ -228,7 +228,7 @@ export function SessionsPanel({ scope = 'inside' }) {
             rows={sessions}
             renderRow={s => (<>
               <TD mono><b>{s.qr_id || s.ar_marker_name || '-'}</b></TD>
-              <TD muted>{(s.destination_name || '–').slice(0, 32)}</TD>
+              <TD muted>{String(s.destination_name || s.destination || '-').slice(0, 32)}</TD>
               <TD><Pill v={s.session_status === 'completed' ? 'Successful' : s.session_status === 'cancelled' ? 'Cancelled' : 'In Progress'} /></TD>
               <TD center>{Array.isArray(s.visited_node_ids) ? s.visited_node_ids.length : 0}</TD>
               <TD mono muted>{s.session_id || `DB-${s.id}`}</TD>

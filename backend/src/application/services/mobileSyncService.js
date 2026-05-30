@@ -38,6 +38,7 @@ function sanitize(row){
   return {
     session_id:       row.session_id,
     qr_id:            row.qr_id,
+    destination_node_id: row.destination || null,
     session_status:   row.session_status || null,
     visited_node_ids: row.visited_node_ids || [],
     session_scope:    row.session_scope,
